@@ -24,7 +24,7 @@
 
 | Nodo | Hardware / OS | Rol | Servicios |
 |---|---|---|---|
-| `node-01` | Cualquier PC/mini-PC con Linux (uno viejo existente, o mini-PC N100 ~US$150). **Requerido desde F1** — es el nodo de ingress; deja de ser crítico cuando el NAS absorba sus servicios en F3 | **Ingress público** + servicios 24/7 que no deben depender del rig | **Traefik v3** (80/443, Let's Encrypt), sitio estático Astro, lumina-calendar, Uptime Kuma, DDNS updater, CrowdSec; desde F2: Authentik, revscope-server + PostgreSQL/PostGIS, Komodo Core (interino) |
+| `node-01` | **Decidido 2026-08-20: la torre Ryzen 7 3700X, 16GB RAM, 1TB NVMe** (ex-banco de pruebas de OpenWinBlue). Debian + Docker; el banco de drivers se preserva en una **VM Windows 10 (KVM) con passthrough USB del dongle BT** — test-signing y BSODs encerrados en la VM, el ingress no se entera. Consumo ~50-70W 24/7 (mitigable con eco-mode del Ryzen). Deja de ser crítico cuando el NAS absorba sus servicios en F3 | **Ingress público** + servicios 24/7 que no deben depender del rig | **Traefik v3** (80/443, Let's Encrypt), sitio estático Astro, lumina-calendar, Uptime Kuma, CrowdSec; desde F2: Authentik, revscope-server + PostgreSQL/PostGIS, Komodo Core (interino) |
 | `rig` | Ryzen 9 7900X3D, 128GB, RX 7800 XT 16GB (+ R9700 32GB pendiente), Windows 11 | Nodo GPU. Servicios nativos Windows, proxiados por Traefik vía LAN. Antes de publicarlo aplica el gate de aislamiento (ver [roadmap del rig](https://github.com/santiquiroz/local-llm-homelab/blob/master/docs/homelab-roadmap.md)) | bipolar-code + llama-server, Upflow, Argos (demo), Ollama |
 | `nas` (futuro) | UGREEN DXP (4 bahías clase DXP4800 Plus), UGOS Pro | Almacenamiento, backups, contenedores livianos 24/7 | SMB/NFS, repositorio restic, Authentik, Komodo Core, monitoreo interno |
 | Router | Router con IP pública, port-forwarding y **servidor OpenVPN** | Frontera: forward 80/443 → node-01; VPN del plano admin | OpenVPN server (perfiles por miembro/dispositivo) |
@@ -140,7 +140,7 @@ Rol: **almacenamiento + backups + los contenedores que nunca deben apagarse.** N
 | Ítem | Costo | Cuándo |
 |---|---|---|
 | Dominio suruworks.com | ya existe (~US$12/año renovación) | ahora |
-| `node-01` | US$0 si hay PC viejo utilizable; mini-PC N100 ~US$150 si no | **F1** |
+| `node-01` | US$0 (torre 3700X existente) + ~COP$45-60k/mes de electricidad (24/7 a 50-70W) | **F1** |
 | SMTP transaccional (invitaciones/recovery de Authentik) | US$0-1/mes a este volumen | F2 |
 | Backblaze B2 (~100GB) | ~US$0.6/mes | **F2** (adelantado; no espera al NAS) |
 | Monitor externo (UptimeRobot free) | US$0 | F1 |
