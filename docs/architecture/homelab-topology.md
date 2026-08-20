@@ -72,6 +72,15 @@ flowchart LR
 - La config de Traefik (routers/middlewares) es **declarativa y vive en `suru-infra`**: un diff delata cualquier ruta pública no aprobada; cron simple en node-01 alerta si la config activa difiere del repo.
 - **Publicación de emergencia de algo del plano admin:** solo tras SSO + `suru-admins`, registrada como cambio en `suru-infra`, y revertida con TTL — nunca una ruta permanente.
 
+### Estado DNS real (relevado 2026-08-20)
+
+- **IP pública de casa: `181.206.62.242` — estática (Claro).** DDNS innecesario.
+- DNS gestionado hoy en el panel de **Claro Cloud** (`cp.cloud.claro.com.co`). El apex `suruworks.com` y `www` **ya apuntan a la IP de casa**.
+- Registros preexistentes a respetar al migrar o editar:
+  - **Correo activo del dominio**: MX ×4 → `mx*.carrierzone.com` + A de `ftp/pop/smtp/webmail` → `69.49.115.x` (hosting de correo de Claro/Hostopia). Copiar tal cual si se migran nameservers — romper esto rompe el email del dominio. Candidato natural a SMTP de Authentik en F2 (buzón `noreply@`), con Resend como alternativa.
+  - `minecraft.`, `cloud.`, `hes.` → `186.83.193.208`: IP distinta a la de casa — inventariar qué son antes de tocar (¿servicios previos? ¿IP vieja? ¿otro miembro?). No se eliminan sin confirmar.
+- **Plan:** migrar nameservers a **Cloudflare (free)** — el panel de Claro no tiene API (sin DNS-01 para wildcard, sin CAA, sin el toggle orange-cloud que es nuestra escalada anti-DDoS documentada). Cloudflare importa los registros automáticamente; verificar a mano que MX/correo y los tres subdominios legacy queden idénticos, y dejar `minecraft.` siempre DNS-only (el proxy de Cloudflare no proxya TCP no-HTTP). Mientras la migración no ocurra, F1 funciona igual sobre el DNS de Claro con registros A por subdominio → `181.206.62.242` y certificados HTTP-01 por hostname (el wildcard llega con Cloudflare).
+
 ### Plano de administración — OpenVPN del router
 
 - Servidor **OpenVPN en el router** (capacidad ya disponible). Perfiles `.ovpn` **por miembro y por dispositivo**, entregados por canal seguro (QR presencial o vault compartido, nunca chat plano). Revocación de certificado por miembro al salir ([offboarding](../auth/group-sso.md)).
