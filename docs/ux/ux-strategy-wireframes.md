@@ -265,7 +265,7 @@ PAGE HEADER → Let's talk about your project. / No commitment. Just a conversat
 │  Project description (textarea)        │  │  ─────────────────────────────  │
 │  Budget range (optional select)        │  │  Prefer a call?                │
 │  [ Send message ]  (solid #0369A1)     │  │  [ Book on Calendly → ]        │
-│  "I'll reply within 24 hours."         │  │  hello@suruworks.co            │
+│  "I'll reply within 24 hours."         │  │  hello@suruworks.com           │
 └────────────────────────────────────────┘  └────────────────────────────────┘
 
 SUCCESS STATE: ✓ Message received. I'll be in touch within 24 hours.

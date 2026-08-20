@@ -70,7 +70,7 @@ services:
     networks: [suruworks-net]
 
   postgres:
-    image: postgres:16-alpine
+    image: postgres:17-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: suruworks

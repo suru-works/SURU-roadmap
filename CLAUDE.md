@@ -14,9 +14,13 @@ This is a **strategy and planning repository** for SURUworks — a Colombian tec
 | `docs/architecture/microservices-architecture.md` | Full service map, communication protocols, monorepo structure, migration path |
 | `docs/architecture/docker-compose-reference.md` | Docker Compose setup reference |
 | `docs/stack/tech-stack-2025.md` | Definitive technology decisions with rationale |
-| `docs/auth/auth-system-spec.md` | Auth service spec (JWT RS256, refresh rotation, JWKS endpoint) |
+| `docs/auth/auth-system-spec.md` | Auth service spec (JWT RS256, refresh rotation, JWKS endpoint) — customer-facing realm |
+| `docs/auth/group-sso.md` | Group SSO: Authentik IdP, groups/roles model, per-app integration patterns (internal realm) |
+| `docs/architecture/homelab-topology.md` | Physical hosting topology: multi-PC nodes, VPS + Pangolin ingress, VPN admin plane, NAS, backups, phases |
+| `docs/architecture/platform-integration.md` | Portfolio → group web integration: hostability tiers per project, subdomain map |
 | `docs/ux/ux-strategy-wireframes.md` | UX strategy and wireframes |
 | `docs/brand/brand-identity.md` | Brand identity and tone |
+| `docs/superpowers/specs/2025-05-02-suruworks-platform-design.md` | Original full-scope platform design spec |
 | `design-system/MASTER.md` | Design tokens, component specs, anti-patterns |
 | `design-system/pages/` | Per-page design overrides |
 
@@ -37,6 +41,8 @@ This is a **strategy and planning repository** for SURUworks — a Colombian tec
 
 **Infrastructure progression:** Docker Compose → k3s (on-premise) → EKS (when revenue justifies it). Migration uses Strangler Fig — no rewrite required.
 
+**Physical hosting (2026-08):** the group's multi-PC topology (VPS + Pangolin public ingress, WireGuard admin plane, GPU rig, UGREEN NAS) is defined in `docs/architecture/homelab-topology.md`. Group identity (Authentik SSO, internal realm) is defined in `docs/auth/group-sso.md` and does NOT replace the custom Spring Authorization Server, which remains the customer-facing plan.
+
 ## Key Technology Decisions
 
 These are locked. Do not suggest alternatives without strong justification:
@@ -45,7 +51,7 @@ These are locked. Do not suggest alternatives without strong justification:
 - **Event bus:** NATS with JetStream (not Kafka, not RabbitMQ)
 - **Database:** PostgreSQL everywhere (Analytics uses TimescaleDB extension)
 - **Object storage:** MinIO locally → S3 in cloud (same SDK, only URL changes)
-- **Microfrontend:** Vite Plugin Federation (`@originjs/vite-plugin-federation`) — not Single-SPA, not iframes
+- **Microfrontend:** Module Federation 2.0 (`@module-federation/enhanced`) on Rspack — not Single-SPA, not iframes (updated 2026-08: `@originjs/vite-plugin-federation` is unmaintained)
 - **Auth:** Custom Spring Authorization Server (not Keycloak, not Auth0)
 - **Frontend state:** TanStack Query v5 (server state) + Zustand 5.x (UI state)
 - **Styling:** Tailwind CSS v4 + shadcn/ui + `@suruworks/ui` design system package

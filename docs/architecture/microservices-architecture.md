@@ -12,7 +12,7 @@ This document defines the complete architecture for SURUworks: a personal tech p
 
 **Core bets:**
 - Traefik as API Gateway (zero-config service discovery)
-- Module Federation with Vite Plugin Federation (React-native, no framework lock-in)
+- Module Federation 2.0 on Rspack (React-native, no framework lock-in)
 - NATS for async messaging (lighter than Kafka, simpler than RabbitMQ for a solo dev)
 - PostgreSQL everywhere possible (one mental model, one ops skill)
 - Docker Compose Day 1, k3s on-premise, EKS when revenue justifies it
@@ -136,14 +136,16 @@ This document defines the complete architecture for SURUworks: a personal tech p
 
 ## 2. Microfrontend Strategy
 
-### Decision: Vite Plugin Federation (Module Federation)
+### Decision: Module Federation 2.0 (Rspack)
 
 **Rejected alternatives:**
 - **Single-SPA:** Too much boilerplate. Module Federation has overtaken it for React shops in 2025.
 - **Astro Islands:** Poor fit for interactive tools requiring React state management.
 - **iframes:** True isolation but terrible UX. Only for truly untrusted third-party embeds.
 
-**Tool:** `@originjs/vite-plugin-federation`
+**Tool:** Module Federation 2.0 (`@module-federation/enhanced`) sobre Rspack.
+
+> Actualizado 2026-08: antes decía `@originjs/vite-plugin-federation`, que quedó sin mantenimiento activo y contradecía a [tech-stack-2025](../stack/tech-stack-2025.md), que ya especificaba Rspack + MF 2.0. Se unifica en Rspack + MF 2.0.
 
 ### Shell Application (Host)
 
@@ -472,7 +474,7 @@ suruworks/                        ← Nx workspace root
 |---|---|---|
 | API Gateway | Traefik v3 | 50+ services |
 | Auth | Custom Spring Security | Enterprise SSO (SAML) |
-| Microfrontend | Vite Plugin Federation | React replacement |
+| Microfrontend | Module Federation 2.0 (Rspack) | React replacement |
 | Event Bus | NATS with JetStream | 10M+ events/day |
 | Database | PostgreSQL everywhere | AI needs vector DB |
 | Object Storage | MinIO → S3 | Always (same API) |
