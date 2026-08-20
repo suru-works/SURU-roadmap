@@ -66,10 +66,10 @@ Reglas duras:
 
 ## 5. Patrones de integración por app
 
-Tres patrones, del mejor al más pragmático. Regla estructural previa ([topología §1.6](../architecture/homelab-topology.md)): un backend detrás de gate es inalcanzable sin el gate (bind al túnel/localhost o firewall de host), y el edge hace strip de headers de identidad entrantes.
+Tres patrones, del mejor al más pragmático. Regla estructural previa ([topología §1.6](../architecture/homelab-topology.md)): un backend detrás de gate es inalcanzable sin el gate (bind a la interfaz correcta/localhost o firewall de host que solo acepta al Traefik de node-01), y el edge hace strip de headers de identidad entrantes.
 
 - **(a) OIDC nativo** — la app habla OIDC ella misma y lee `groups`. Aplica: revscope-server (`AUTH_MODE=oidc`), Komodo.
-- **(b) Forward-auth en el edge** — Pangolin/Traefik consulta al proxy provider de Authentik antes de dejar pasar; la app ni se entera. Aplica: bipolar-code UI, Argos demo, cualquier dashboard. **Validar la cadena Pangolin→forward-auth→Authentik en F2 con un servicio trivial y guardar la config de referencia en `suru-infra`; fallback documentado: oauth2-proxy.**
+- **(b) Forward-auth en el edge** — Traefik consulta al proxy provider de Authentik antes de dejar pasar; la app ni se entera. Aplica: bipolar-code UI, Argos demo, cualquier dashboard. **Validar la cadena Traefik→middleware forward-auth→Authentik proxy provider en F2 con un servicio trivial y guardar la config de referencia en `suru-infra`; fallback documentado: oauth2-proxy.**
 - **(c) Gate SSO + auth interna** — forward-auth decide QUIÉN entra; la auth interna de la app maneja permisos finos/cuotas. Aplica: Upflow. Implica **doble credencial asumida** (SSO + login interno de Upflow); la cuenta interna se crea como paso del onboarding (§6). Evaluar trusted-header auth si Upflow lo llega a soportar.
 
 | App | Patrón | Grupo requerido |
@@ -86,10 +86,10 @@ Tres patrones, del mejor al más pragmático. Regla estructural previa ([topolog
 
 El `/api/*` de bipolar-code no es solo inferencia: **arranca/mata llama-server, reescribe `~/.claude/settings.json` y el registro de Windows del rig**. Con la API key única compartida eso sería control remoto del rig con una sola key filtrada. Reglas duras para `ai.suruworks.com`:
 
-1. **Solo `/v1/*` (inferencia) se publica por el túnel. `/api/*` (control plane) jamás sale de LAN/VPN.** Cómo se configura la exención por path en Pangolin/Traefik se verifica en F1 con el túnel de prueba; si no se puede por path, se publican hostnames separados y solo el de inferencia sale.
+1. **Solo `/v1/*` (inferencia) se publica por el ingress. `/api/*` (control plane) jamás sale de LAN/VPN.** La separación por path es nativa en Traefik: router público con regla `PathPrefix(/v1)`; `/api` sin router público. Test negativo desde internet como criterio de salida de F4.
 2. **Una API key por miembro** (feature a agregar en bipolar-code antes de F4) — revocación individual, no grupal. Mientras exista una sola key: rotación documentada y ligada al offboarding.
-3. Rate-limiting en el edge (middleware Traefik del VPS) para los endpoints con API key.
-4. Ingresos no-navegador de bipolar (bot de Telegram, BYOK `/v1/chat/completions`) quedan **fuera de la instancia grupal**: el bot es personal-only y nunca se tunela; el BYOK usa las keys por miembro.
+3. Rate-limiting en el edge (middleware de Traefik en node-01) para los endpoints con API key.
+4. Ingresos no-navegador de bipolar (bot de Telegram, BYOK `/v1/chat/completions`) quedan **fuera de la instancia grupal**: el bot es personal-only y nunca se publica; el BYOK usa las keys por miembro.
 
 Nota API-first general: forward-auth protege navegadores. Clientes programáticos (app Android RevScope, `ANTHROPIC_BASE_URL` → bipolar) usan su mecanismo propio (JWT del IdP; API key por miembro). No forzar OIDC interactivo donde no hay navegador. Inventariar **todos** los ingresos no-navegador de cada app antes de publicarla.
 
@@ -99,11 +99,11 @@ Nota API-first general: forward-auth protege navegadores. Clientes programático
 1. Invitación de Authentik (correo vía SMTP, o enlace manual) → registra passkey → grupos asignados.
 2. Si usará Upflow: el operador crea su cuenta interna de Upflow (patrón c).
 3. Si usará bipolar programático: se le emite su API key propia.
-4. Si necesita plano admin: perfil WireGuard por dispositivo con `AllowedIPs` acotados a lo que necesita (emitido por el operador desde el router; entrega del `.conf` por canal seguro — QR presencial o vault compartido, nunca chat plano).
+4. Si necesita plano admin: perfil OpenVPN por dispositivo (certificado propio, emitido desde el router), acotado a lo que necesita donde el firmware lo permita; entrega del `.ovpn` por canal seguro — QR presencial o vault compartido, nunca chat plano.
 
 **Offboarding (checklist — ejecutar el mismo día):**
 1. Authentik: desactivar cuenta + revocar todas las sesiones.
-2. Router: eliminar su(s) peer(s) WireGuard.
+2. Router: revocar su(s) certificado(s)/perfil(es) OpenVPN.
 3. Upflow: desactivar cuenta interna.
 4. bipolar-code: revocar su API key (o rotar la compartida mientras no haya per-member keys).
 5. Verificar que no queda en ningún grupo `app-*`.

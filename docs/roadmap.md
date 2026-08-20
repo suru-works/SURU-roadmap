@@ -24,7 +24,7 @@ Resolver estas antes de comenzar la Semana 1:
 | PostgreSQL | Todos los servicios | Disponible desde Docker Compose Día 1 |
 | TripoSR weights (~2 GB) | Image-to-3D service | Descargar de Hugging Face antes de Semana 3 |
 | Resend API key | Email + Contact form | Registrar gratis antes de Semana 1 Día 5 |
-| Dominio `suruworks.com` | Deploy Semana 2 | ✅ Registrado (2026-08). DNS apunta al VPS según [homelab-topology](architecture/homelab-topology.md) |
+| Dominio `suruworks.com` | Deploy Semana 2 | ✅ Registrado (2026-08). DNS apunta a la IP pública de casa según [homelab-topology](architecture/homelab-topology.md) |
 
 ---
 
@@ -81,7 +81,7 @@ Resolver estas antes de comenzar la Semana 1:
 
 **Día 5 · Responsive + Deploy**
 - [ ] Responsive mobile (375 px, 768 px)
-- [ ] Deploy en el VPS del grupo (Pangolin/Traefik) — ver [homelab-topology](architecture/homelab-topology.md). (Corregido 2026-08: antes decía Railway, contradecía la tesis on-premise)
+- [ ] Deploy en el ingress del grupo (node-01, Traefik) — ver [homelab-topology](architecture/homelab-topology.md). (Corregido 2026-08: antes decía Railway, contradecía la tesis on-premise)
 
 **Entregable**: `suruworks.com` vive con homepage completa.
 

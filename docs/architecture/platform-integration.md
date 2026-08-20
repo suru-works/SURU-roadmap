@@ -19,7 +19,7 @@ Nota de licencias transversal: **toda app AGPL hosteada en red obliga a ofrecer 
 | Proyecto | Qué es | Stack | Auth actual | Nota de integración |
 |---|---|---|---|---|
 | **revscope-server** | Backend social/colaborativo de RevScope: reportes de huecos crowdsourced, salas de rodada con posiciones live, ghosts compartidos | FastAPI + PostgreSQL/PostGIS, Docker | `AUTH_MODE` none/token/**oidc** (sin user-DB propia) | **La app modelo.** Diseñada para esto; OIDC contra el IdP del grupo. Primera app con SSO (F2). AGPL: link al fuente desde la instancia |
-| **lumina-calendar** | PWA calendario/tareas local-first (coautoría con Diego Álvarez) | TS + Vite PWA, sin backend | Ninguna (by design) | Build estático en el VPS. El win más barato. **AGPL-3.0 + atribución §7(b): atribución visible obligatoria y OK explícito del coautor antes de hostearla bajo la marca** |
+| **lumina-calendar** | PWA calendario/tareas local-first (coautoría con Diego Álvarez) | TS + Vite PWA, sin backend | Ninguna (by design) | Build estático en node-01. El win más barato. **AGPL-3.0 + atribución §7(b): atribución visible obligatoria y OK explícito del coautor antes de hostearla bajo la marca** |
 | **bipolar-code** | Gateway LLM personal (llama.cpp multi-GPU + proveedores cloud, API Anthropic/OpenAI) | FastAPI + React, corre nativo en el rig | API key única (`UI_API_KEY`); README dice LAN-only | Solo-miembros. **Régimen especial: solo `/v1/*` se publica; `/api/*` (control plane del rig) jamás — y keys por miembro antes de F4.** Ver [group-sso §5](../auth/group-sso.md) |
 | **Upflow** | Estudio multimedia IA: upscaling, interpolación, stems, TTS, generación | FastAPI + React, GPU (Vulkan/DirectML), nativo en el rig | **Multi-user real**: `AUTH_MODE=multi`, scopes, cuotas | Solo-miembros. Gate SSO delante + cuentas internas (doble credencial asumida; la cuenta interna se crea en el onboarding) |
 
@@ -27,7 +27,7 @@ Nota de licencias transversal: **toda app AGPL hosteada en red obliga a ofrecer 
 
 | Proyecto | Riesgo | Decisión |
 |---|---|---|
-| **Argos** | Analítica de comportamiento/identidad sobre cámaras: pose, re-ID, cara, gait. **Biometría = dato sensible bajo Ley 1581/2012 (habeas data)**; multi-tenant con API key compartida inaceptable | **Nunca público con footage real — con enforcement técnico, no solo política**: la instancia demo se despliega con allowlist fija de fuentes sintéticas empaquetadas y sin capacidad de agregar cámaras (flag horneado al deploy, no toggle de UI); firewall de host impide al proceso demo alcanzar la VLAN de cámaras/puertos RTSP. Instancias con footage real: solo locales de cada miembro, jamás al túnel, y con base legal documentada |
+| **Argos** | Analítica de comportamiento/identidad sobre cámaras: pose, re-ID, cara, gait. **Biometría = dato sensible bajo Ley 1581/2012 (habeas data)**; multi-tenant con API key compartida inaceptable | **Nunca público con footage real — con enforcement técnico, no solo política**: la instancia demo se despliega con allowlist fija de fuentes sintéticas empaquetadas y sin capacidad de agregar cámaras (flag horneado al deploy, no toggle de UI); firewall de host impide al proceso demo alcanzar la VLAN de cámaras/puertos RTSP. Instancias con footage real: solo locales de cada miembro, jamás al ingress público, y con base legal documentada |
 | **Leviathan** | Bot de trading MT5. Lo que toca dinero no se comparte hosteado | Showcase + docs. Como mucho, explorador de backtests read-only con data de muestra, sin cuentas |
 
 ### Tier 3 — Showcase (página + releases, nada que hostear)
@@ -54,9 +54,9 @@ Nota de licencias transversal: **toda app AGPL hosteada en red obliga a ofrecer 
 
 | Subdominio | Servicio | Acceso | Nodo |
 |---|---|---|---|
-| `suruworks.com` | Sitio Astro corporativo + showcase | Público | vps |
-| `lumina.suruworks.com` | Lumina Calendar PWA | Público | vps |
-| `status.suruworks.com` | Uptime Kuma — **solo la status page dedicada** (dashboard: VPN) | Público (read-only) | vps |
+| `suruworks.com` | Sitio Astro corporativo + showcase | Público | node-01 |
+| `lumina.suruworks.com` | Lumina Calendar PWA | Público | node-01 |
+| `status.suruworks.com` | Uptime Kuma — **solo la status page dedicada** (dashboard: VPN) | Público (read-only) | node-01 |
 | `auth.suruworks.com` | IdP del grupo (Authentik) | Público (es el login; MFA obligatorio) | node-01 → nas |
 | `revscope.suruworks.com` | revscope-server API | Público con OIDC (la app móvil habla directo) | node-01 |
 | `upflow.suruworks.com` | Upflow | Miembros (forward-auth + auth interna) | rig |
@@ -64,13 +64,13 @@ Nota de licencias transversal: **toda app AGPL hosteada en red obliga a ofrecer 
 | `argos.suruworks.com` | Argos demo (footage sintético, enforcement técnico §2) | Miembros | rig |
 | `app.` / `admin.` | **Reservados** para la plataforma comercial SURUworks ([auth-system-spec](../auth/auth-system-spec.md) ya los fija en CORS) | — | futuro |
 
-**Fuera del plano público (solo VPN/LAN, sin subdominio en el mapa):** Komodo, dashboard completo de Uptime Kuma, UIs del NAS, llama-server directo, Pangolin admin. Regla en [homelab-topology §3](homelab-topology.md); el cron del VPS audita que ningún recurso público extra aparezca.
+**Fuera del plano público (solo VPN/LAN, sin subdominio en el mapa):** Komodo, dashboard completo de Uptime Kuma, UIs del NAS, llama-server directo, dashboard de Traefik. Regla en [homelab-topology §3](homelab-topology.md); la config de Traefik es declarativa en `suru-infra` y un cron en node-01 alerta ante rutas públicas no aprobadas.
 
 Reglas: los servicios del rig declaran en su página que son best-effort (el rig no es 24/7).
 
 ## 4. Orden de integración
 
-1. **F1:** `suruworks.com` (Astro) + `lumina.` + `status.` — estático/liviano, cero dependencia de casa.
+1. **F1:** `suruworks.com` (Astro) + `lumina.` + `status.` en node-01 — ingress en casa (port-forward 80/443 → Traefik, IP pública propia).
 2. **F2a — server:** `auth.` + `revscope.` con OIDC; verificable con curl/JWT sin la app.
 3. **F2b — cliente Android:** trabajo real en la app RevScope (flujo AppAuth contra Authentik + wiring del contrato offline-first, que hoy no existe en la app). Entregable propio con su alcance — el server no se declara "completo" esperando esto, ni F2 se cierra sin el cliente real.
 4. **F4:** `upflow.` + `ai.` + `argos.` (demo) — servicios GPU solo-miembros, tras el gate de aislamiento del rig.

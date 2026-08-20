@@ -16,7 +16,7 @@ This is a **strategy and planning repository** for SURUworks — a Colombian tec
 | `docs/stack/tech-stack-2025.md` | Definitive technology decisions with rationale |
 | `docs/auth/auth-system-spec.md` | Auth service spec (JWT RS256, refresh rotation, JWKS endpoint) — customer-facing realm |
 | `docs/auth/group-sso.md` | Group SSO: Authentik IdP, groups/roles model, per-app integration patterns (internal realm) |
-| `docs/architecture/homelab-topology.md` | Physical hosting topology: multi-PC nodes, VPS + Pangolin ingress, VPN admin plane, NAS, backups, phases |
+| `docs/architecture/homelab-topology.md` | Physical hosting topology: multi-PC nodes, home ingress (port-forward 80/443 → Traefik on public IP), OpenVPN admin plane, NAS, backups, phases |
 | `docs/architecture/platform-integration.md` | Portfolio → group web integration: hostability tiers per project, subdomain map |
 | `docs/ux/ux-strategy-wireframes.md` | UX strategy and wireframes |
 | `docs/brand/brand-identity.md` | Brand identity and tone |
@@ -41,7 +41,7 @@ This is a **strategy and planning repository** for SURUworks — a Colombian tec
 
 **Infrastructure progression:** Docker Compose → k3s (on-premise) → EKS (when revenue justifies it). Migration uses Strangler Fig — no rewrite required.
 
-**Physical hosting (2026-08):** the group's multi-PC topology (VPS + Pangolin public ingress, WireGuard admin plane, GPU rig, UGREEN NAS) is defined in `docs/architecture/homelab-topology.md`. Group identity (Authentik SSO, internal realm) is defined in `docs/auth/group-sso.md` and does NOT replace the custom Spring Authorization Server, which remains the customer-facing plan.
+**Physical hosting (2026-08):** the group's multi-PC topology (home ingress: port-forward 80/443 → Traefik on the group's public IP, OpenVPN admin plane, GPU rig, UGREEN NAS) is defined in `docs/architecture/homelab-topology.md`. Group identity (Authentik SSO, internal realm) is defined in `docs/auth/group-sso.md` and does NOT replace the custom Spring Authorization Server, which remains the customer-facing plan.
 
 ## Key Technology Decisions
 

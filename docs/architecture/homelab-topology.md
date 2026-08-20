@@ -2,20 +2,21 @@
 
 > Decisión de arquitectura de infraestructura física/red para hostear los servicios del grupo bajo `suruworks.com`. Complementa [platform-integration.md](platform-integration.md) (qué apps se hostean) y [../auth/group-sso.md](../auth/group-sso.md) (identidad). Investigación de respaldo: last30days 2026-08-20 (`homelab-sso-multi-node-self-hosting-stack-raw-v3.md` en la librería de research). Revisado con pase adversario de seguridad/exactitud/consistencia/completitud el mismo día.
 
-**Estado:** Decidido 2026-08-20. Fase 0 en curso.
+**Estado:** Decidido 2026-08-20. Actualizado el mismo día: **sin VPS ni túneles** — hay IP pública real, la entrada es port-forwarding directo al reverse proxy de casa, y el plano privado es la VPN OpenVPN del router. Fase 0 en curso.
 
 ---
 
 ## 1. Principios
 
-1. **Cero port-forwarding en casa.** Ningún puerto del router residencial abierto a internet. Todo el tráfico público entra por un VPS; los nodos de casa se conectan al VPS con túneles WireGuard salientes.
+1. **Superficie mínima en el router.** Solo se abren **80/443** hacia el host del reverse proxy (Traefik). Ningún otro puerto forwardeado, nunca. UPnP y WPS deshabilitados.
 2. **Dos planos de red separados, y se mantienen separados:**
-   - **Plano público** — lo que el mundo ve (`suruworks.com` y subdominios). Entra por el VPS.
-   - **Plano de administración** — UIs de admin, NAS, Komodo, llama-server. Solo por VPN o LAN. **Nunca** se publica en Pangolin, ni "temporalmente" sin TTL (ver §3).
+   - **Plano público** — lo que el mundo ve (`suruworks.com` y subdominios). Entra por 80/443 → Traefik en `node-01`.
+   - **Plano de administración** — UIs de admin, NAS, Komodo, llama-server, dashboard de Traefik. Solo por **OpenVPN del router** o LAN. Nunca detrás del ingress público.
 3. **Docker Compose por nodo, no Kubernetes.** Consenso 2026 del homelab (y regla ya escrita en [tech-stack-2025](../stack/tech-stack-2025.md)): no arrancar k3s hasta que Compose no dé rolling deploys. Con 1-3 nodos y un operador, k3s es sobrecosto puro.
 4. **Identidad centralizada, servicios sin user-DB propia.** Toda app nueva valida OIDC contra un issuer configurable (patrón ya implementado en revscope-server). Ver [group-sso.md](../auth/group-sso.md).
-5. **El hardware que ya existe primero.** El rig de IA (Windows) no se fuerza a Docker: sus servicios GPU corren nativos y se publican vía túnel. Los servicios 24/7 livianos van a Linux (node-01/NAS). El IdP jamás corre en el rig ni en Windows.
-6. **Backend detrás de gate = backend inalcanzable sin el gate.** Un servicio protegido por forward-auth en el edge debe ser inalcanzable por otra vía: bind a localhost/interfaz del túnel o firewall de host que solo acepte el ingress del túnel. El edge elimina (strip) cualquier `X-Forwarded-User`/`Remote-User` entrante. Sin esto, el SSO es decorativo — cualquier dispositivo en LAN/VPN saltaría el gate.
+5. **El hardware que ya existe primero.** El rig de IA (Windows) no se fuerza a Docker: sus servicios GPU corren nativos y Traefik los proxya por LAN. Los servicios 24/7 livianos van a Linux (node-01/NAS). El IdP jamás corre en el rig ni en Windows.
+6. **Backend detrás de gate = backend inalcanzable sin el gate.** Un servicio protegido por forward-auth debe ser inalcanzable por otra vía: bind a la interfaz correcta o firewall de host que solo acepte al Traefik de node-01. El edge elimina (strip) cualquier `X-Forwarded-User`/`Remote-User` entrante. Sin esto, el SSO es decorativo — cualquier dispositivo en LAN/VPN saltaría el gate.
+7. **Traefik es el mismo gateway ya locked del stack** ([tech-stack-2025](../stack/tech-stack-2025.md)): la plataforma comercial futura entra a la misma topología sin pieza nueva.
 
 ---
 
@@ -23,13 +24,13 @@
 
 | Nodo | Hardware / OS | Rol | Servicios |
 |---|---|---|---|
-| `vps` | VPS pequeño. Opciones: Hetzner **CPX11 en Ashburn** (~US$5-6/mes, la línea CX es solo-EU) o CX22 en EU (~€4, +~100ms desde Colombia); alternativas US baratas: Netcup, OVH, RackNerd | Punta pública, túneles, vigía externo. **Activo Tier-0**: hardening máximo (ver §7) | Pangolin (Traefik + WireGuard + auth), sitio estático Astro, lumina-calendar (estático), Uptime Kuma |
-| `rig` | Ryzen 9 7900X3D, 128GB, RX 7800 XT 16GB (+ R9700 32GB pendiente), Windows 11 | Nodo GPU. Servicios nativos Windows, no dockerizados. Antes de publicarlo aplica el gate de aislamiento (ver [roadmap del rig](https://github.com/santiquiroz/local-llm-homelab/blob/master/docs/homelab-roadmap.md)) | bipolar-code + llama-server, Upflow, Argos (demo), Ollama |
-| `node-01` | Cualquier PC/mini-PC con Linux (uno viejo existente, o mini-PC N100 ~US$150). **Requerido para F2** — deja de ser crítico cuando el NAS absorba sus servicios en F3 | Servicios 24/7 que no deben depender del rig; host interino de identidad | Authentik, revscope-server + PostgreSQL/PostGIS, Komodo Core (interino) |
+| `node-01` | Cualquier PC/mini-PC con Linux (uno viejo existente, o mini-PC N100 ~US$150). **Requerido desde F1** — es el nodo de ingress; deja de ser crítico cuando el NAS absorba sus servicios en F3 | **Ingress público** + servicios 24/7 que no deben depender del rig | **Traefik v3** (80/443, Let's Encrypt), sitio estático Astro, lumina-calendar, Uptime Kuma, DDNS updater, CrowdSec; desde F2: Authentik, revscope-server + PostgreSQL/PostGIS, Komodo Core (interino) |
+| `rig` | Ryzen 9 7900X3D, 128GB, RX 7800 XT 16GB (+ R9700 32GB pendiente), Windows 11 | Nodo GPU. Servicios nativos Windows, proxiados por Traefik vía LAN. Antes de publicarlo aplica el gate de aislamiento (ver [roadmap del rig](https://github.com/santiquiroz/local-llm-homelab/blob/master/docs/homelab-roadmap.md)) | bipolar-code + llama-server, Upflow, Argos (demo), Ollama |
 | `nas` (futuro) | UGREEN DXP (4 bahías clase DXP4800 Plus), UGOS Pro | Almacenamiento, backups, contenedores livianos 24/7 | SMB/NFS, repositorio restic, Authentik, Komodo Core, monitoreo interno |
+| Router | Router con IP pública, port-forwarding y **servidor OpenVPN** | Frontera: forward 80/443 → node-01; VPN del plano admin | OpenVPN server (perfiles por miembro/dispositivo) |
 | Móviles | S25 Ultra, etc. | Clientes VPN; Nodo (LLM on-device) como historia de ecosistema, no como servicio hosteado | — |
 
-Regla de colocación: **GPU → rig; 24/7 liviano → node-01/NAS; público estático → vps.** El rig puede apagarse o reiniciarse sin tumbar identidad, sitio ni monitoreo. **Identidad (Authentik) solo corre en node-01 → NAS, nunca en el rig** (Authentik es contenedores Linux; el rig es Windows nativo y por diseño apagable).
+Regla de colocación: **GPU → rig; 24/7 liviano e ingress → node-01/NAS.** El rig puede apagarse o reiniciarse sin tumbar identidad, sitio ni monitoreo. **Identidad (Authentik) solo corre en node-01 → NAS, nunca en el rig.**
 
 ---
 
@@ -40,42 +41,44 @@ flowchart LR
     subgraph Internet
         U[Usuarios públicos]
         M[Miembros SURU]
+        EM[Monitor externo gratuito]
     end
-    subgraph VPS["vps (público, Tier-0)"]
-        P[Pangolin<br/>Traefik + WG + auth]
-        S[Sitio Astro + Lumina]
-        K[Uptime Kuma]
-    end
-    subgraph Casa["LAN casa (sin puertos abiertos)"]
+    subgraph Casa["LAN casa (IP pública)"]
+        RT[Router<br/>forward SOLO 80/443<br/>OpenVPN server]
+        subgraph N1["node-01 (Linux)"]
+            T[Traefik v3 + CrowdSec]
+            S[Astro + Lumina + Kuma]
+            A[Authentik F2+]
+        end
         R[rig - Windows<br/>bipolar / Upflow / Argos]
-        N[nas - UGREEN<br/>storage / backups]
-        L[node-01 - Linux<br/>Authentik / revscope-server]
-        RT[Router<br/>WireGuard server]
+        NS[nas - UGREEN F3+]
     end
-    U -->|HTTPS suruworks.com| P
-    M -->|HTTPS + SSO| P
-    M -.->|WireGuard admin| RT
-    P ===|túnel WG saliente<br/>Newt: solo puertos publicados| R
-    P ===|túnel WG saliente| N
-    P ===|túnel WG saliente| L
+    U -->|HTTPS suruworks.com| RT
+    M -->|HTTPS + SSO| RT
+    EM -->|ping status| RT
+    M -.->|OpenVPN admin| RT
+    RT --> T
+    T -->|LAN| R
+    T --> S
+    T --> A
 ```
 
-### Plano público — VPS + Pangolin
+### Plano público — port-forwarding 80/443 → Traefik
 
-- **Pangolin** (fosrl/pangolin, 22k+ estrellas, YC S25) combina reverse proxy Traefik, túneles WireGuard y control de acceso identity-aware en un solo stack Compose sobre el VPS. Cada nodo de casa corre el agente **Newt** (binario Go, hay build Windows para el rig) que abre el túnel saliente — el router de casa no abre nada.
-- **Cada túnel Newt expone exactamente los puertos de servicio publicados, nunca SSH/RDP/UIs de admin.** El túnel no rutea la LAN: es proxy por recurso declarado.
-- Licenciamiento (verificado 2026-08): core AGPL-3 (CE) incluye OIDC básico contra IdP externo; auto-provisioning y sync de roles desde el IdP caen en la Fossorial Commercial License — **gratis para uso personal y negocios <US$100K/año, aplicable a SURU hoy**.
-- DNS: `suruworks.com` → IP del VPS (Cloudflare DNS, modo DNS-only; TLS lo termina Traefik con Let's Encrypt). Concretar en F0: migración de nameservers, tabla de registros alineada al [mapa de subdominios](platform-integration.md), wildcard `*.suruworks.com` + DNS-01 (token Cloudflare scoped a TXT de la zona) vs por-subdominio + HTTP-01.
+- El router forwardea **únicamente 80 y 443** a `node-01`. Ahí Traefik v3 termina TLS (Let's Encrypt) y rutea por hostname según el [mapa de subdominios](platform-integration.md).
+- **DNS:** `suruworks.com` → IP pública de casa (Cloudflare DNS). En F0 confirmar si la IP es estática o dinámica; si es dinámica, contenedor DDNS (`cloudflare-ddns`) en node-01 actualizando el registro A. Certificados: wildcard `*.suruworks.com` con DNS-01 (token Cloudflare scoped a TXT de la zona) — evita exponer subdominios uno a uno en certificate transparency.
 - **La cuenta DNS/registrar es parte de la cadena de confianza** (un takeover re-apunta `auth.` y phishea a todos): 2FA con llave de hardware, registrar lock, DNSSEC, registro CAA fijando Let's Encrypt. Va en F0.
-- Por recurso, Pangolin permite: público sin auth, PIN/password, o SSO OIDC contra el IdP del grupo.
-- **Publicación de emergencia de algo del plano admin:** solo tras SSO + `suru-admins`, registrada como cambio en `suru-infra` (config declarativa — un diff delata rutas olvidadas), y con verificación programada: cron en el VPS que compara los recursos activos de Pangolin contra el mapa de subdominios aprobado y alerta ante cualquier recurso público inesperado.
+- **Trade-off aceptado (y sus mitigaciones):** exponer la IP de casa revela ubicación aproximada y recibe el escaneo de fondo de internet. Mitigación: solo 2 puertos abiertos, CrowdSec en Traefik (bloqueo de IPs abusivas), rate-limiting middleware en endpoints de login/API, y **opción de escalada barata**: activar el proxy de Cloudflare (orange-cloud, gratis) delante para ocultar la IP si el ruido o un DDoS molestan — es un toggle en el DNS, no un rediseño. Se arranca DNS-only (TLS end-to-end propio) y se escala solo si hace falta.
+- La config de Traefik (routers/middlewares) es **declarativa y vive en `suru-infra`**: un diff delata cualquier ruta pública no aprobada; cron simple en node-01 alerta si la config activa difiere del repo.
+- **Publicación de emergencia de algo del plano admin:** solo tras SSO + `suru-admins`, registrada como cambio en `suru-infra`, y revertida con TTL — nunca una ruta permanente.
 
-### Plano de administración — VPN del router
+### Plano de administración — OpenVPN del router
 
-- WireGuard server en el router de casa. **Perfiles por miembro/dispositivo con `AllowedIPs` acotados a los hosts/puertos que ese miembro necesita — no toda la LAN para todos.** Solo `suru-admins` reciben perfiles con alcance amplio.
-- **Detección CGNAT (F0):** comparar la IP WAN que reporta el router contra la IP pública vista desde fuera (`curl ifconfig.me` desde un nodo). Si difieren → CGNAT → activar plan B.
-- **Plan B (CGNAT) — es un cambio de arquitectura, no un atajo.** Los túneles Newt no sirven para esto (solo exponen recursos declarados). Mecanismo real: instancia WireGuard **separada** en el VPS (namespace/puerto propio, jamás la misma superficie que Pangolin) con un nodo de casa actuando de subnet-router hacia la LAN, y `AllowedIPs` por peer acotados igual que en el plan A. Alternativa a evaluar: los clients nativos de Pangolin (Olm). **Probar el plan B en F1 aunque no haya CGNAT** — una contingencia no ensayada no existe. Plan C: Tailscale (gratis ≤3 usuarios).
-- Nada del plano admin se publica en Pangolin como subdominio permanente. Komodo, UIs del NAS, llama-server: solo VPN/LAN.
+- Servidor **OpenVPN en el router** (capacidad ya disponible). Perfiles `.ovpn` **por miembro y por dispositivo**, entregados por canal seguro (QR presencial o vault compartido, nunca chat plano). Revocación de certificado por miembro al salir ([offboarding](../auth/group-sso.md)).
+- Acceso acotado: donde el router lo permita, restringir por perfil a los hosts/puertos que ese miembro necesita; solo `suru-admins` con alcance amplio. Si el firmware no da granularidad, se compensa con firewall de host en node-01/NAS.
+- Da acceso a: UIs de admin, NAS, Komodo, llama-server directo, dashboard de Traefik. Nada de esto se publica en el ingress.
+- Nota: si el router también soporta WireGuard, es alternativa válida (más simple/rápida); OpenVPN es lo decidido por disponibilidad actual. Tailscale queda como plan B si administrar la VPN del router cansa.
+- **Contingencia futura:** si el ISP algún día mueve la conexión a CGNAT, esta topología pierde la entrada — en ese momento se reabre la decisión (VPS de entrada o túneles). No se diseña hoy.
 
 ---
 
@@ -85,10 +88,8 @@ flowchart LR
 
 - **Komodo** (GPL-3.0, gratis sin caps): dashboard único que maneja stacks Compose en N servidores vía agentes Periphery, con deploys git-driven, RBAC y login OIDC (se integra al SSO del grupo). Alternativas descartadas: Portainer (RBAC y team-sync de OAuth en tier Business; el login OAuth básico sí está en CE) y Dockge (tiene agentes multi-host desde 1.4, pero sin RBAC, sin OIDC y sin deploys git-driven).
 - Komodo Core corre en node-01 → NAS; Periphery en cada nodo Linux. El rig Windows queda fuera de Komodo (servicios nativos). **Komodo es plano admin: acceso solo por VPN/LAN — nunca subdominio público** (es RCE-de-flota con una sesión admin robada).
-- **GitOps:** los archivos Compose y config de cada nodo viven en un repo privado nuevo `suru-infra` (crear en F1; NO en este repo, que es público). Komodo sincroniza desde ahí. Secretos fuera de git siempre — con escrow (§6).
+- **GitOps:** los archivos Compose y config de cada nodo (incluido el Traefik de ingress) viven en un repo privado nuevo `suru-infra` (crear en F1; NO en este repo, que es público). Komodo sincroniza desde ahí. Secretos fuera de git siempre — con escrow (§6).
 - Umbral de reevaluación: >3 nodos Linux y necesidad real de rolling deploys/HA → reabrir k3s. No antes.
-
----
 
 ## 5. NAS UGREEN (compra futura)
 
@@ -109,7 +110,7 @@ Rol: **almacenamiento + backups + los contenedores que nunca deben apagarse.** N
 | **`C:\litellm` del rig** (providers.json + `.env` con tokens reales de proveedores) | Disco del rig | restic **cifrado** → NAS | B2 |
 | Modelos GGUF / datasets del rig | Disco del rig | NAS (rsync manual; re-descargables) | no aplica |
 | Repos de código | GitHub | — | — |
-| Config VPS (compose de Pangolin) | repo `suru-infra` | NAS | B2 |
+| Config de ingress y nodos (`suru-infra`) | GitHub privado | NAS | B2 |
 
 **Custodia de secretos (escrow) — sin esto los backups no restauran:**
 
@@ -119,8 +120,9 @@ Rol: **almacenamiento + backups + los contenedores que nunca deben apagarse.** N
 
 ## 7. Monitoreo y seguridad operativa
 
-- Uptime Kuma en el VPS. **Solo la status page dedicada se publica en `status.suruworks.com`; el dashboard completo (incluye la API socket.io) jamás se publica — VPN o forward-auth en hostname propio, nunca split por path.** Auditar qué hostnames internos revela la status page.
-- **VPS = Tier-0** (termina TLS de todo, corre forward-auth, tiene túneles a todos los nodos): SSH solo llaves + 2FA/llave hardware para el proveedor, CrowdSec o fail2ban, auditd/alertas sobre cambios de config, alerta ante recursos nuevos de Pangolin (§3), actualizaciones de seguridad automáticas.
+- Uptime Kuma en node-01 + **monitor externo gratuito** (UptimeRobot/HetrixTools free tier) apuntando a `status.suruworks.com` — sin VPS, la vista desde fuera la da un tercero gratis. **Solo la status page dedicada de Kuma se publica en `status.suruworks.com`; el dashboard completo (incluye la API socket.io) jamás — VPN, nunca split por path.** Auditar qué hostnames internos revela la status page.
+- **node-01 es el activo Tier-0** (termina TLS de todo y corre forward-auth): SSH solo llaves, CrowdSec, auditd/alertas sobre cambios de config, actualizaciones de seguridad automáticas, config declarativa auditada contra `suru-infra` (§3).
+- **Router:** firmware al día, UPnP/WPS deshabilitados, admin del router jamás accesible desde WAN, credencial admin propia fuerte.
 - Watchtower NO en servicios con estado (Authentik/Postgres: upgrade manual con backup previo); sí en estáticos.
 - Logs: `docker logs` + Uptime Kuma; Loki cuando duela (misma filosofía de fases de [tech-stack-2025](../stack/tech-stack-2025.md)).
 
@@ -129,35 +131,38 @@ Rol: **almacenamiento + backups + los contenedores que nunca deben apagarse.** N
 | Ítem | Costo | Cuándo |
 |---|---|---|
 | Dominio suruworks.com | ya existe (~US$12/año renovación) | ahora |
-| VPS (Hetzner CPX11 Ashburn o CX22 EU) | ~US$5-6/mes | F1 |
-| `node-01` | US$0 si hay PC viejo utilizable; mini-PC N100 ~US$150 si no | F2 |
+| `node-01` | US$0 si hay PC viejo utilizable; mini-PC N100 ~US$150 si no | **F1** |
 | SMTP transaccional (invitaciones/recovery de Authentik) | US$0-1/mes a este volumen | F2 |
 | Backblaze B2 (~100GB) | ~US$0.6/mes | **F2** (adelantado; no espera al NAS) |
+| Monitor externo (UptimeRobot free) | US$0 | F1 |
 | UGREEN DXP4800 Plus + 2×HDD NAS 8TB | ~US$700 + ~US$320 (una vez) | F3 |
-| Pangolin, Authentik, Komodo, restic | US$0 (open source) | — |
+| Traefik, Authentik, Komodo, restic, OpenVPN | US$0 (open source / ya en el router) | — |
+
+Sin VPS: US$0/mes de infraestructura alquilada hasta F2 (~US$1.6/mes desde ahí).
 
 ## 9. Fases (con criterios de salida)
 
-- **F0 — ahora ($0):** docs publicados; DNS: nameservers en Cloudflare (o DNS-only en registrar actual) + hardening de la cuenta (2FA hardware, registrar lock, DNSSEC, CAA); WireGuard del router probado; detección CGNAT ejecutada.
-  *Salida:* `dig suruworks.com` resuelve donde se decidió; un miembro entra por VPN desde red externa **o** la contingencia CGNAT quedó activada y documentada.
-- **F1 — VPS:** Pangolin desplegado; sitio Astro + Lumina en vivo; Uptime Kuma; túnel Newt de prueba desde el rig; repo `suru-infra` creado; **ensayo del plan B CGNAT** (§3).
-  *Salida:* recurso de prueba del rig accesible vía `https://…suruworks.com` con TLS válido; status page pública; plan B probado una vez.
-- **F2 — identidad:** node-01 aprovisionado (precondición); Authentik en `auth.suruworks.com`; SMTP configurado (SPF/DKIM/DMARC en DNS); **restic→B2 de la DB de Authentik desde el día 1**; revscope-server con `AUTH_MODE=oidc` — primera app del grupo con SSO real; cadena forward-auth validada con un servicio trivial y config de referencia guardada en `suru-infra`.
+- **F0 — ahora ($0):** docs publicados; DNS: nameservers en Cloudflare + hardening de la cuenta (2FA hardware, registrar lock, DNSSEC, CAA); confirmar IP estática vs dinámica (dinámica → plan DDNS); **servidor OpenVPN del router configurado y probado desde red externa** (datos móviles).
+  *Salida:* `dig suruworks.com` resuelve a la IP de casa; un miembro entra por OpenVPN desde fuera y alcanza solo lo que su perfil permite.
+- **F1 — ingress en casa:** node-01 aprovisionado; Traefik v3 con Let's Encrypt (wildcard DNS-01) + CrowdSec; port-forward 80/443; DDNS si aplica; sitio Astro + Lumina en vivo; Uptime Kuma + monitor externo gratuito; repo `suru-infra` creado con la config declarativa.
+  *Salida:* `https://suruworks.com` y `https://lumina.suruworks.com` con TLS válido desde fuera; escaneo externo (`nmap`) muestra solo 80/443 abiertos; status page monitoreada por el tercero.
+- **F2 — identidad:** Authentik en `auth.suruworks.com`; SMTP configurado (SPF/DKIM/DMARC en DNS); **restic→B2 de la DB de Authentik desde el día 1**; revscope-server con `AUTH_MODE=oidc` — primera app del grupo con SSO real; cadena forward-auth (Traefik middleware → Authentik proxy provider) validada con un servicio trivial y config de referencia en `suru-infra`.
   *Salida:* un miembro invitado entra con passkey a revscope; restore de prueba de la DB de Authentik desde B2 ejecutado una vez.
 - **F3 — NAS:** compra UGREEN (trigger: F2 estable + presupuesto ~US$1.000 disponible); migran Authentik/Komodo/monitoreo; 3-2-1 completo operando.
   *Salida:* simulacro de restore "disco muerto" desde escrow + B2 superado.
-- **F4 — servicios GPU para miembros:** Upflow, bipolar-code y Argos (demo, footage sintético) publicados solo-miembros tras forward-auth; **precondición: gate de aislamiento del rig** (cuentas de servicio de baja privilegio, credenciales fuera del alcance, Newt como servicio — ver roadmap del rig); Komodo gestionando los nodos Linux.
+- **F4 — servicios GPU para miembros:** Upflow, bipolar-code y Argos (demo, footage sintético) publicados solo-miembros tras forward-auth, proxiados por Traefik vía LAN al rig; **precondición: gate de aislamiento del rig** (cuentas de servicio de baja privilegio, credenciales fuera del alcance — ver roadmap del rig); Komodo gestionando los nodos Linux.
   *Salida:* miembro no-admin usa Upflow vía web; `/api/*` de bipolar inalcanzable desde internet (test negativo documentado).
-- **F5 — plataforma SURUworks:** cuando arranque el desarrollo real de la plataforma comercial, aplica el stack ya especificado ([microservices-architecture](microservices-architecture.md), [auth-system-spec](../auth/auth-system-spec.md)); esta topología la hostea sin cambios.
+- **F5 — plataforma SURUworks:** cuando arranque el desarrollo real de la plataforma comercial, aplica el stack ya especificado ([microservices-architecture](microservices-architecture.md), [auth-system-spec](../auth/auth-system-spec.md)); entra al mismo Traefik sin pieza nueva.
 
 ## 10. Riesgos
 
 | Riesgo | Mitigación |
 |---|---|
-| CGNAT del ISP rompe la VPN del router | Plan B ensayado en F1 (instancia WG separada en VPS + subnet-router, AllowedIPs acotados); Tailscale plan C |
-| El rig es Windows y single-point para todo lo GPU | Aceptado: servicios GPU best-effort para miembros, nunca SLA público; identidad/sitio no dependen del rig; gate de aislamiento antes de F4 |
-| Compromiso del VPS (Tier-0) | Túneles exponen solo puertos de servicio; planos separados (plan B en instancia WG aparte); hardening §7; los backends validan su propio auth donde aplica |
-| ISP residencial prohíbe/limita hosting | Solo tráfico tunelizado saliente; lo público vive en el VPS |
+| Conexión/energía de casa = single point de todo lo público | Aceptado (homelab, no SLA comercial); monitor externo avisa; si un día duele, la escalada natural es mover el ingress estático a un VPS/CDN sin tocar el resto |
+| IP de casa expuesta (escaneo, DDoS, geolocalización aproximada) | Solo 80/443; CrowdSec + rate-limits; escalada barata: proxy de Cloudflare (orange-cloud) como toggle |
+| IP dinámica rompe el DNS | DDNS automatizado en node-01 (F0/F1); TTL bajo en el registro A |
+| Compromiso del router (frontera + VPN) | Firmware al día, UPnP/WPS off, admin no accesible desde WAN; revisión periódica de port-forwards |
+| El rig es Windows y single-point para todo lo GPU | Aceptado: servicios GPU best-effort, nunca SLA; identidad/sitio no dependen del rig; gate de aislamiento antes de F4 |
+| ISP migra a CGNAT en el futuro | Se detectaría por el monitor externo + DDNS; reabre la decisión de entrada (VPS/túneles) — documentado, no diseñado |
 | Takeover de la cuenta DNS/registrar | Hardening F0: 2FA hardware, registrar lock, DNSSEC, CAA |
-| Features de IdP de Pangolin cambian de licencia | Ya verificado: CE cubre OIDC básico; la licencia comercial es gratis bajo US$100K/año; y la auth crítica vive en Authentik + validación en cada app |
 | Un solo operador (bus factor) | Docs en este repo; `suru-infra` con README de restore; escrow de secretos en dos custodias (§6); break-glass con segunda copia sellada ([group-sso](../auth/group-sso.md)) |
