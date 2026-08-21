@@ -74,7 +74,8 @@ flowchart LR
 
 ### Estado DNS real (relevado 2026-08-20)
 
-- **IP pública de casa: `181.206.62.242` — estática (Claro).** DDNS innecesario.
+- **IP pública de casa: `181.206.62.242` — estática (ISP: Tigo).** DDNS innecesario.
+- **Cadena de entrada (doble NAT resuelto por DMZ):** internet → módem/ONT Tigo (`192.168.1.1`, DMZ → `192.168.1.74`) → router MSI GRAXE66 (WAN `192.168.1.74`, LAN `192.168.10.0/24`) → nodos. Requisito: la IP `192.168.1.74` debe estar **reservada para la MAC del MSI** en el DHCP del Tigo, o la DMZ se rompe con cualquier reinicio. Los forwards (80/443, y UDP/1194 de la VPN) se administran SOLO en el MSI; el Tigo no se toca más.
 - DNS gestionado hoy en el panel de **Claro Cloud** (`cp.cloud.claro.com.co`). El apex `suruworks.com` y `www` **ya apuntan a la IP de casa**.
 - Registros preexistentes a respetar al migrar o editar:
   - **Correo activo del dominio**: MX ×4 → `mx*.carrierzone.com` + A de `ftp/pop/smtp/webmail` → `69.49.115.x` (hosting de correo de Claro/Hostopia). Copiar tal cual si se migran nameservers — romper esto rompe el email del dominio. Candidato natural a SMTP de Authentik en F2 (buzón `noreply@`), con Resend como alternativa.
