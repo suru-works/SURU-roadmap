@@ -43,7 +43,7 @@ This document defines the complete architecture for SURUworks: a personal tech p
 **Technology:** Java 21 + Spring Boot 3 + Spring Security
 **Reasoning:** Founder already knows Java. Spring Security is the most battle-tested auth library in the JVM ecosystem. Do not use Keycloak until you have a team — it is operationally complex for a solo dev. Custom-built gives you full control over the token structure and claims.
 
-**Exposes:** REST (`/auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/me`), and an internal gRPC endpoint for token validation used by other services.
+**Exposes:** REST (`/auth/login`, `/auth/refresh`, `/auth/logout`, `/auth/me`) and the public key set at `/auth/.well-known/jwks.json`. Other services validate tokens locally with it; there is no remote validation endpoint.
 
 **Dependencies:** None external. Internal: PostgreSQL (users, sessions), Redis (token blacklist / refresh token store).
 
@@ -63,7 +63,7 @@ This document defines the complete architecture for SURUworks: a personal tech p
 
 **Exposes:** REST (`/users/{id}`, `/users/{id}/preferences`). Subscribes to `user.registered` events from Auth Service via NATS.
 
-**Dependencies:** Auth Service (JWT validation via gRPC), NATS (consumes user.registered events).
+**Dependencies:** Auth Service (local JWT validation with the cached JWKS), NATS (consumes user.registered events).
 
 **Database:** PostgreSQL.
 
@@ -194,7 +194,7 @@ CSS Modules + scoped class names per MFE. Global design tokens as CSS custom pro
 | Scenario | Protocol | Reason |
 |---|---|---|
 | Frontend → Gateway → Service | REST | Standard, debuggable, cacheable |
-| Service validates JWT with Auth (hot path) | gRPC | Binary, typed, low latency |
+| Service validates JWT (hot path) | Local, cached JWKS | No network call per request; gRPC or a remote validate endpoint only as a future option (opaque tokens, real-time revocation) |
 | User registers → Email Service sends welcome | NATS (async) | Not on critical path |
 | Image-to-3D job completed → notify | NATS (async) | Long-running job result |
 
@@ -321,7 +321,7 @@ infrastructure/
 
 ### Shared Identity Pattern
 
-Auth Service is the **source of truth for identity**. Other services store only the user UUID (from `sub` JWT claim).
+Auth Service is the **source of truth for identity**. Other services store only the user ID (`usr_` + ULID, from `sub` JWT claim).
 
 **Public key distribution:** Auth Service exposes `GET /auth/.well-known/jwks.json`. All services download and cache the JWKS on startup → token validation is local, no network call per request.
 
@@ -372,7 +372,7 @@ Single Redis instance with logical DB separation on Day 1. Each service owns its
   ┌───────────────┐    ┌─────────────────┐          ┌─────────────────┐
   │  AUTH SERVICE │    │ CONTENT SERVICE │          │  PROJECT REG.   │
   │  Java/Spring  │    │  Java/Spring    │          │  Java/Spring    │
-  │  REST + gRPC  │    │  REST           │          │  REST           │
+  │  REST + JWKS  │    │  REST           │          │  REST           │
   ├───────────────┤    └────────┬────────┘          └────────┬────────┘
   │  postgres     │    ┌────────▼────────┐          ┌────────▼────────┐
   │  auth_db      │    │  postgres       │          │  postgres       │

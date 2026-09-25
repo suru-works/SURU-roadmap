@@ -56,7 +56,7 @@ Rationale: Short enough to limit damage if stolen; long enough to not degrade UX
 ```json
 {
   "iss": "https://suruworks.com",
-  "sub": "usr_01HXYZ123456",
+  "sub": "usr_01J8Z3K5QW9X2M4N6P7R8S9T0V",
   "email": "user@example.com",
   "email_verified": true,
   "name": "Santiago Quiroz",
@@ -194,8 +194,9 @@ If breached: prompt user to choose a different password with clear explanation. 
 -- Users table: identity source of truth
 -- ────────────────────────────────────────────────────────
 CREATE TABLE users (
-    id              VARCHAR(26) PRIMARY KEY,           -- ULID: usr_01HXYZ...
-    email           VARCHAR(255) UNIQUE NOT NULL,
+    id              VARCHAR(30) PRIMARY KEY            -- 'usr_' + ULID (4 + 26 chars)
+                    CHECK (id ~ '^usr_[0-9A-HJKMNP-TV-Z]{26}$'),
+    email           VARCHAR(255) NOT NULL,             -- unique case-insensitively (index below)
     email_verified  BOOLEAN NOT NULL DEFAULT FALSE,
     password_hash   TEXT,                              -- NULL for OAuth-only users
     name            VARCHAR(255),
@@ -205,6 +206,9 @@ CREATE TABLE users (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- A@x.com and a@x.com are the same account: lookups also go through lower(email)
+CREATE UNIQUE INDEX users_email_lower_key ON users (lower(email));
 
 -- ────────────────────────────────────────────────────────
 -- Roles table: role definitions
@@ -220,7 +224,7 @@ INSERT INTO roles (name) VALUES ('USER'), ('ADMIN'), ('SERVICE');
 -- User roles: many-to-many
 -- ────────────────────────────────────────────────────────
 CREATE TABLE user_roles (
-    user_id VARCHAR(26) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id VARCHAR(30) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     role_id INTEGER    NOT NULL REFERENCES roles(id),
     PRIMARY KEY (user_id, role_id)
 );
@@ -230,12 +234,12 @@ CREATE TABLE user_roles (
 -- ────────────────────────────────────────────────────────
 CREATE TABLE oauth_accounts (
     id              VARCHAR(26) PRIMARY KEY,
-    user_id         VARCHAR(26) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id         VARCHAR(30) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     provider        VARCHAR(20) NOT NULL,              -- google, github
     provider_user_id VARCHAR(255) NOT NULL,
-    access_token    TEXT,
-    refresh_token   TEXT,
-    expires_at      TIMESTAMPTZ,
+    -- Provider access/refresh tokens are NOT stored: the callback uses them once to
+    -- read the profile and discards them. A feature that later needs the provider API
+    -- must add them encrypted (AES-256-GCM, key kept outside the database).
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     UNIQUE (provider, provider_user_id)
 );
@@ -245,8 +249,8 @@ CREATE TABLE oauth_accounts (
 -- ────────────────────────────────────────────────────────
 CREATE TABLE email_verifications (
     id          VARCHAR(26) PRIMARY KEY,
-    user_id     VARCHAR(26) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    token       VARCHAR(64) UNIQUE NOT NULL,           -- cryptographically random
+    user_id     VARCHAR(30) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash  VARCHAR(64) UNIQUE NOT NULL,           -- SHA-256 of the random token sent by email
     expires_at  TIMESTAMPTZ NOT NULL,
     used_at     TIMESTAMPTZ,
     created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -257,7 +261,7 @@ CREATE TABLE email_verifications (
 -- ────────────────────────────────────────────────────────
 CREATE TABLE password_reset_tokens (
     id          VARCHAR(26) PRIMARY KEY,
-    user_id     VARCHAR(26) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id     VARCHAR(30) NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     token_hash  VARCHAR(64) UNIQUE NOT NULL,           -- hashed with SHA-256
     expires_at  TIMESTAMPTZ NOT NULL,
     used_at     TIMESTAMPTZ,
@@ -269,7 +273,7 @@ CREATE TABLE password_reset_tokens (
 -- ────────────────────────────────────────────────────────
 CREATE TABLE auth_audit_log (
     id          BIGSERIAL PRIMARY KEY,
-    user_id     VARCHAR(26),                           -- NULL for anonymous events
+    user_id     VARCHAR(30),                           -- NULL for anonymous events
     event_type  VARCHAR(50) NOT NULL,                  -- LOGIN, LOGOUT, REGISTER, etc.
     ip_address  INET,
     user_agent  TEXT,
@@ -288,7 +292,7 @@ CREATE TABLE api_keys (
     name        VARCHAR(100) NOT NULL,
     key_hash    VARCHAR(64) UNIQUE NOT NULL,           -- SHA-256 of the raw key
     key_prefix  VARCHAR(8) NOT NULL,                   -- first 8 chars for display
-    service_id  VARCHAR(26) REFERENCES users(id),      -- NULL = not tied to user
+    service_id  VARCHAR(30) REFERENCES users(id),      -- NULL = not tied to user
     scopes      TEXT[],                               -- e.g. {read:projects, write:jobs}
     expires_at  TIMESTAMPTZ,
     last_used_at TIMESTAMPTZ,
@@ -330,11 +334,12 @@ Resend has the cleanest API, first-class React/HTML email support, and the best 
 
 ```
 1. User registers → account created with email_verified = false
-2. Auth Service creates email_verification record (token, expires_at = NOW() + 24h)
+2. Auth Service generates a random token and stores only its hash
+   (token_hash = SHA-256(token), expires_at = NOW() + 24h)
 3. Email Service sends verification email with link:
    https://suruworks.com/auth/verify-email?token={token}
 4. User clicks link
-5. Auth Service: finds token, checks not expired, not used
+5. Auth Service: hashes the received token, finds token_hash, checks not expired, not used
 6. Updates users.email_verified = true
 7. Marks email_verification.used_at = NOW()
 8. Redirects to /dashboard with success toast
@@ -505,7 +510,7 @@ PUT    /auth/me/password
   Body: { currentPassword, newPassword }
   Response: 200 + invalidates all sessions
 
-GET    /.well-known/jwks.json
+GET    /auth/.well-known/jwks.json
   Response: 200 { keys: [{ kty, use, kid, alg, n, e }] }
   Cache-Control: max-age=86400
 
@@ -514,12 +519,11 @@ GET    /auth/admin/users
 GET    /auth/admin/users/{id}
 PUT    /auth/admin/users/{id}/status
 GET    /auth/admin/audit-log
-
-# Service endpoints (API Key required)
-POST   /auth/internal/validate-token
-  Body: { token }
-  Response: 200 { valid, userId, email, roles } or 401
 ```
+
+**Token validation has a single mechanism:** each service verifies the JWT locally with the cached JWKS (section 9). There is no remote validation endpoint (no `POST /auth/internal/validate-token`, no gRPC). Future option only if opaque access tokens or real-time revocation become a requirement.
+
+The JWKS lives under `/auth` on purpose: the Traefik router sends only `PathPrefix(/auth)` to this service ([docker-compose-reference.md](../architecture/docker-compose-reference.md)), so a JWKS published at the domain root would never reach it.
 
 ---
 
@@ -561,7 +565,7 @@ public class JwtService {
 
 ```java
 @RestController
-@RequestMapping("/.well-known")
+@RequestMapping("/auth/.well-known")
 public class JwksController {
 
     private final RSAPublicKey publicKey;
@@ -633,7 +637,7 @@ Deliverables:
 - `POST /auth/login` with JWT + refresh token
 - `POST /auth/refresh` with rotation
 - `POST /auth/logout`
-- `GET /.well-known/jwks.json`
+- `GET /auth/.well-known/jwks.json`
 - `GET /auth/me`
 - Email verification flow (Resend integration)
 - Basic rate limiting (Redis counters)
@@ -664,6 +668,31 @@ Deliverables:
 - IP-based anomaly detection
 - Export compliance (GDPR right-to-be-forgotten)
 - Comprehensive audit log UI
+
+---
+
+## 11. Brecha con la regla puente OIDC
+
+> **Estado:** sin decidir. Esta sección registra la brecha; no elige solución.
+
+[group-sso.md §2](group-sso.md) (línea 27) fija la regla puente: *"toda app valida OIDC contra un issuer configurable y no guarda usuarios propios. El día que el auth propio exista, se cambia el issuer y nada más."* Este spec, tal como está, no cumple esa promesa:
+
+| La regla puente necesita | Este spec hoy |
+|---|---|
+| Un proveedor OIDC (discovery en `<issuer>/.well-known/openid-configuration`) | No hay documento de discovery; solo el JWKS en `/auth/.well-known/jwks.json` |
+| Flujo authorization code + PKCE contra el IdP | Endpoints JSON propios (`POST /auth/login` con email y contraseña en el body) |
+| Emisor construido sobre Spring Authorization Server (§1) | El §9 emite el JWT a mano (`JWT.create()`), sin pasar por Spring Authorization Server |
+| Issuer cuyo discovery sea alcanzable | `iss` = `https://suruworks.com`, pero Traefik solo enruta `PathPrefix(/auth)` a este servicio, así que `https://suruworks.com/.well-known/openid-configuration` no llegaría |
+
+Consecuencia: una app que hoy valida contra Authentik no podría pasarse a este auth cambiando solo el issuer.
+
+Opciones a decidir (dueño):
+
+- **A.** Hacer del auth comercial un proveedor OIDC real con Spring Authorization Server: discovery, authorization code + PKCE e issuer bajo la ruta enrutada (p. ej. `https://suruworks.com/auth`). La API JSON propia queda solo para la UI first-party.
+- **B.** Mantener la API propia y acotar la regla puente al realm interno (Authentik), corrigiendo el texto de group-sso.md.
+- **C.** Posponer la decisión hasta que se construya el realm comercial, dejando esta brecha como bloqueante explícito de esa fase.
+
+La ruta del JWKS (`/auth/.well-known/jwks.json`) sirve con cualquiera de las tres: en A se publica además como `jwks_uri` del discovery.
 
 ---
 

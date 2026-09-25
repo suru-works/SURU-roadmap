@@ -46,7 +46,7 @@ Resolver estas antes de comenzar la Semana 1:
 - [ ] `POST /auth/login` (JWT RS256)
 - [ ] `POST /auth/refresh` (rotación de tokens)
 - [ ] `POST /auth/logout`
-- [ ] `GET /.well-known/jwks.json`
+- [ ] `GET /auth/.well-known/jwks.json`
 
 **Día 5 · Email + Tests**
 - [ ] Integración con Resend

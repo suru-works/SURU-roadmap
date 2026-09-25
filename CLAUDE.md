@@ -31,10 +31,10 @@ This is a **strategy and planning repository** for SURUworks — a Colombian tec
 
 **Service communication rules:**
 - Frontend → Gateway → Service: REST
-- JWT validation (hot path): gRPC between services
+- JWT validation (hot path): local in each service with the cached JWKS — no call to Auth per request (no gRPC, no remote validate endpoint)
 - Side effects (email, notifications): NATS JetStream events
 
-**Services:** Auth (Java/Spring Boot) → all other services validate tokens against its `/.well-known/jwks.json`. Auth is the only source of truth for identity; every other service stores only the user UUID from the `sub` JWT claim.
+**Services:** Auth (Java/Spring Boot) → all other services validate tokens against its `/auth/.well-known/jwks.json`. Auth is the only source of truth for identity; every other service stores only the user ID (`usr_` + ULID) from the `sub` JWT claim.
 
 **One Python exception:** `image3d-service` uses FastAPI — all other backend services are Java 21 + Spring Boot 3.4.
 
