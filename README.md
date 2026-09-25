@@ -13,6 +13,8 @@
 
 Contiene el plan estratégico completo de la plataforma: arquitectura, diseño, brand, y roadmap de implementación.
 
+El sitio corporativo de la fase F1 (estático, sin auth) tiene su spec en [docs/site/f1-corporate-site.md](docs/site/f1-corporate-site.md).
+
 ## Estructura
 
 ```
@@ -24,6 +26,7 @@ suru/
 │   ├── architecture/              # Technical architecture
 │   ├── auth/                      # Auth system spec
 │   ├── ux/                        # UX strategy & wireframes
+│   ├── site/                      # Spec del sitio corporativo F1
 │   └── stack/                     # Tech stack decisions
 ├── design-system/
 │   ├── MASTER.md                  # Design system master

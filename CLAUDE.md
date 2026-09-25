@@ -19,6 +19,7 @@ This is a **strategy and planning repository** for SURUworks — a Colombian tec
 | `docs/architecture/homelab-topology.md` | Physical hosting topology: multi-PC nodes, home ingress (port-forward 80/443 → Traefik on public IP), OpenVPN admin plane, NAS, backups, phases |
 | `docs/architecture/platform-integration.md` | Portfolio → group web integration: hostability tiers per project, subdomain map |
 | `docs/ux/ux-strategy-wireframes.md` | UX strategy and wireframes |
+| [`docs/site/f1-corporate-site.md`](docs/site/f1-corporate-site.md) | F1 corporate site spec (static Astro, no auth): sitemap, `projects` content collection for the Tier 1-3 portfolio, deploy contract with `suru-infra`, quality budgets, open owner decisions |
 | `docs/brand/brand-identity.md` | Brand identity and tone |
 | `docs/superpowers/specs/2025-05-02-suruworks-platform-design.md` | Original full-scope platform design spec |
 | `design-system/MASTER.md` | Design tokens, component specs, anti-patterns |
