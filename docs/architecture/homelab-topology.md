@@ -74,13 +74,13 @@ flowchart LR
 
 ### Estado DNS real (relevado 2026-08-20)
 
-- **IP pública de casa: `181.206.62.242` — estática (ISP: Tigo).** DDNS innecesario.
-- **Cadena de entrada (doble NAT resuelto por DMZ):** internet → módem/ONT Tigo (`192.168.1.1`, DMZ → `192.168.1.74`) → router MSI GRAXE66 (WAN `192.168.1.74`, LAN `192.168.10.0/24`) → nodos. Requisito: la IP `192.168.1.74` debe estar **reservada para la MAC del MSI** en el DHCP del Tigo, o la DMZ se rompe con cualquier reinicio. Los forwards (80/443, y UDP/1194 de la VPN) se administran SOLO en el MSI; el Tigo no se toca más.
+- **IP pública de casa: estática.** DDNS innecesario. El valor exacto y el ISP son detalle operativo en `suru-infra` (privado).
+- **Cadena de entrada (doble NAT resuelto por DMZ):** internet → módem/ONT del ISP (DMZ → IP WAN del router de borde) → router de borde (WAN en la LAN del módem, LAN propia de los nodos) → nodos. Requisito: la IP WAN del router de borde debe estar **reservada para su MAC** en el DHCP del módem, o la DMZ se rompe con cualquier reinicio. Los forwards (80/443, y el puerto de la VPN) se administran SOLO en el router de borde; el módem del ISP no se toca más. Modelos, direcciones, subredes y puerto de la VPN: detalle operativo en `suru-infra` (privado).
 - DNS gestionado hoy en el panel de **Claro Cloud** (`cp.cloud.claro.com.co`). El apex `suruworks.com` y `www` **ya apuntan a la IP de casa**.
 - Registros preexistentes a respetar al migrar o editar:
   - **Correo activo del dominio**: MX ×4 → `mx*.carrierzone.com` + A de `ftp/pop/smtp/webmail` → `69.49.115.x` (hosting de correo de Claro/Hostopia). Copiar tal cual si se migran nameservers — romper esto rompe el email del dominio. Candidato natural a SMTP de Authentik en F2 (buzón `noreply@`), con Resend como alternativa.
-  - `minecraft.`, `cloud.`, `hes.` → `186.83.193.208`: IP distinta a la de casa — inventariar qué son antes de tocar (¿servicios previos? ¿IP vieja? ¿otro miembro?). No se eliminan sin confirmar.
-- **Plan:** migrar nameservers a **Cloudflare (free)** — el panel de Claro no tiene API (sin DNS-01 para wildcard, sin CAA, sin el toggle orange-cloud que es nuestra escalada anti-DDoS documentada). Cloudflare importa los registros automáticamente; verificar a mano que MX/correo y los tres subdominios legacy queden idénticos, y dejar `minecraft.` siempre DNS-only (el proxy de Cloudflare no proxya TCP no-HTTP). Mientras la migración no ocurra, F1 funciona igual sobre el DNS de Claro con registros A por subdominio → `181.206.62.242` y certificados HTTP-01 por hostname (el wildcard llega con Cloudflare).
+  - `minecraft.`, `cloud.`, `hes.` → una IP distinta a la de casa (valor en `suru-infra`, privado) — inventariar qué son antes de tocar (¿servicios previos? ¿IP vieja? ¿otro miembro?). No se eliminan sin confirmar.
+- **Plan:** migrar nameservers a **Cloudflare (free)** — el panel de Claro no tiene API (sin DNS-01 para wildcard, sin CAA, sin el toggle orange-cloud que es nuestra escalada anti-DDoS documentada). Cloudflare importa los registros automáticamente; verificar a mano que MX/correo y los tres subdominios legacy queden idénticos, y dejar `minecraft.` siempre DNS-only (el proxy de Cloudflare no proxya TCP no-HTTP). Mientras la migración no ocurra, F1 funciona igual sobre el DNS de Claro con registros A por subdominio → la IP de casa y certificados HTTP-01 por hostname (el wildcard llega con Cloudflare).
 
 ### Plano de administración — OpenVPN del router
 

@@ -48,7 +48,7 @@ Nota de licencias transversal: **toda app AGPL hosteada en red obliga a ofrecer 
 |---|---|
 | **free-claude-code** | Superseded por bipolar-code. Solo historia |
 | **codex-companion-dashboard** | Herramienta loopback-only; una instancia pública no significa nada |
-| Carpeta `keys/` en c:\personal | ⚠️ Keystore y credenciales reales — **jamás cerca de un deploy ni de un repo**. Migrarla fuera del rig antes de F4 (gate de aislamiento) |
+| Carpeta local de credenciales del operador (ubicación en `suru-infra`, privado) | ⚠️ Keystore y credenciales reales — **jamás cerca de un deploy ni de un repo**. Migrarla fuera del rig antes de F4 (gate de aislamiento) |
 
 ## 3. Mapa de subdominios (plano público)
 
