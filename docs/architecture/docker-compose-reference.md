@@ -37,9 +37,9 @@ suruworks/
 
 ## docker-compose.yml (base)
 
-```yaml
-version: "3.9"
+Supuestos de `traefik/traefik.yml` que este compose da por hechos (mismo patrón que el ingress real de `suru-infra`, privado): entrypoints `web` (:80, redirige a HTTPS) y `websecure` (:443), un certificate resolver ACME llamado `le` y `providers.docker.exposedByDefault=false`. Cada router declara `entrypoints=websecure` y `tls.certresolver=le`; con solo `tls=true` Traefik serviría su certificado autofirmado por defecto.
 
+```yaml
 networks:
   suruworks-net:
     driver: bridge
@@ -61,7 +61,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
-      - "8080:8080"    # Dashboard — desactivar en producción
+      - "127.0.0.1:8080:8080"    # Dashboard: solo loopback (plano admin, vía VPN/SSH); nunca en el ingress
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
@@ -107,10 +107,10 @@ services:
       - nats-data:/data
       - ./infrastructure/nats/nats.conf:/etc/nats/nats.conf:ro
     networks: [suruworks-net]
-    ports:
-      - "4222:4222"   # Client connections (internal only in prod)
+    # Sin ports: los clientes llegan por suruworks-net (nats://nats:4222); nada se publica en el host
 
   minio:
+    # ⚠ Imagen sin artefacto: MinIO CE está archivado y Docker Hub ya no sirve minio/minio (ver nota abajo)
     image: minio/minio:latest
     restart: unless-stopped
     command: server /data --console-address ":9001"
@@ -119,12 +119,7 @@ services:
       MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY}
     volumes: [minio-data:/data]
     networks: [suruworks-net]
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.minio-console.rule=Host(`storage.${DOMAIN}`)"
-      - "traefik.http.routers.minio-console.service=minio-console"
-      - "traefik.http.services.minio-console.loadbalancer.server.port=9001"
-      - "traefik.http.routers.minio-console.tls=true"
+    # Sin labels Traefik: la consola (:9001) es plano admin, solo VPN/LAN, nunca en el ingress público
 
   # ── SERVICIOS DE APLICACIÓN ─────────────────────────────────────
 
@@ -137,7 +132,7 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/auth_db
       SPRING_DATASOURCE_USERNAME: suruworks
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_ROOT_PASSWORD}
-      SPRING_REDIS_URL: redis://redis:6379/0
+      SPRING_DATA_REDIS_URL: redis://redis:6379/0
       JWT_PRIVATE_KEY_PATH: /secrets/auth-private.pem
       JWT_PUBLIC_KEY_PATH: /secrets/auth-public.pem
       NATS_URL: nats://nats:4222
@@ -152,7 +147,8 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.auth.rule=Host(`${DOMAIN}`) && PathPrefix(`/auth`)"
-      - "traefik.http.routers.auth.tls=true"
+      - "traefik.http.routers.auth.entrypoints=websecure"
+      - "traefik.http.routers.auth.tls.certresolver=le"
       - "traefik.http.services.auth.loadbalancer.server.port=8080"
 
   content-service:
@@ -172,7 +168,8 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.content.rule=Host(`${DOMAIN}`) && PathPrefix(`/content`)"
-      - "traefik.http.routers.content.tls=true"
+      - "traefik.http.routers.content.entrypoints=websecure"
+      - "traefik.http.routers.content.tls.certresolver=le"
       - "traefik.http.services.content.loadbalancer.server.port=8080"
 
   image3d-service:
@@ -196,16 +193,11 @@ services:
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.image3d.rule=Host(`${DOMAIN}`) && PathPrefix(`/tools/image-to-3d`)"
-      - "traefik.http.routers.image3d.tls=true"
+      - "traefik.http.routers.image3d.entrypoints=websecure"
+      - "traefik.http.routers.image3d.tls.certresolver=le"
       - "traefik.http.services.image3d.loadbalancer.server.port=8000"
-    # GPU support (descomentar si GPU disponible):
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1
-    #           capabilities: [gpu]
+    # Sin reserva de GPU: la regla de colocación (homelab-topology.md §2) manda la GPU al rig,
+    # con servicios nativos Windows fuera de Docker y proxiados por Traefik vía LAN
 
   email-service:
     build:
@@ -234,17 +226,21 @@ services:
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/analytics_db
       SPRING_DATASOURCE_USERNAME: suruworks
       SPRING_DATASOURCE_PASSWORD: ${POSTGRES_ROOT_PASSWORD}
+      AUTH_JWKS_URL: http://auth-service:8080/auth/.well-known/jwks.json
     networks: [suruworks-net]
     depends_on:
       postgres: {condition: service_healthy}
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.analytics.rule=Host(`${DOMAIN}`) && PathPrefix(`/analytics`)"
-      - "traefik.http.routers.analytics.tls=true"
-      - "traefik.http.middlewares.analytics-auth.plugin.jwt.required=true"
-      - "traefik.http.routers.analytics.middlewares=analytics-auth"
+      - "traefik.http.routers.analytics.entrypoints=websecure"
+      - "traefik.http.routers.analytics.tls.certresolver=le"
       - "traefik.http.services.analytics.loadbalancer.server.port=8080"
+    # El JWT se valida en el servicio (JWKS local, como el resto); Traefik no trae middleware JWT nativo.
+    # Si algún día se quiere el gate en el edge, es un middleware forwardAuth declarado en traefik/dynamic
 ```
+
+> ⚠ **MinIO: la imagen de referencia ya no existe.** MinIO CE entró en modo mantenimiento (dic-2025), su repositorio fue archivado (abr-2026) y Docker Hub eliminó el namespace `minio` (sep-2026), así que `minio/minio:latest` ya no se puede descargar (el 2026-09-25 `docker manifest inspect minio/minio:latest` respondió `denied: requested access to the resource is denied`, mientras `nats:2.10-alpine` resolvía normal). Evidencia: [lobehub#9845](https://github.com/lobehub/lobehub/issues/9845), [VONNG — MinIO is Dead](https://blog.vonng.com/en/db/minio-is-dead/), [StableBuild](https://www.stablebuild.com/blog/minio-images-disappeared-from-docker-hub). El bloque se deja tal cual como marcador del almacenamiento S3-compatible: el reemplazo (otra implementación S3 o S3 administrado) es una decisión pendiente del dueño y no se elige aquí.
 
 ---
 
@@ -323,7 +319,7 @@ docker compose exec redis redis-cli
 
 ## Traefik Dashboard
 
-Disponible en `http://localhost:8080` en desarrollo. Muestra todos los routers, servicios y middlewares activos en tiempo real. Desactivar en producción vía `traefik.yml`.
+Publicado solo en el loopback del nodo (`127.0.0.1:8080`): se consulta desde el plano de administración (VPN + túnel SSH), nunca por el ingress público ([homelab-topology.md](homelab-topology.md) §1). Muestra todos los routers, servicios y middlewares activos en tiempo real. Desactivar en producción vía `traefik.yml`.
 
 ---
 
