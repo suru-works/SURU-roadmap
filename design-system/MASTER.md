@@ -28,7 +28,7 @@
 | Modo | 2D, sin sombras, sin gradientes |
 | Soporte dark mode | Completo |
 | Performance | Excelente |
-| Accesibilidad | WCAG AAA |
+| Accesibilidad | WCAG 2.2 AA (pares verificados con `scripts/check_contrast.py`) |
 | Keywords | minimalist, bold colors, clean lines, simple shapes, typography-focused |
 
 ---
@@ -42,18 +42,59 @@
 | Secondary | `#334155` | `--color-secondary` |
 | On Secondary | `#FFFFFF` | `--color-on-secondary` |
 | Accent / CTA | `#0369A1` | `--color-accent` |
+| Accent Hover | `#075985` | `--color-accent-hover` |
 | On Accent | `#FFFFFF` | `--color-on-accent` |
+| Accent on Dark (links y focus en secciones oscuras) | `#7DD3FC` | `--color-accent-on-dark` |
 | Background | `#F8FAFC` | `--color-background` |
 | Foreground | `#020617` | `--color-foreground` |
 | Card | `#FFFFFF` | `--color-card` |
 | Card Foreground | `#020617` | `--color-card-foreground` |
 | Muted | `#E8ECF1` | `--color-muted` |
-| Muted Foreground | `#64748B` | `--color-muted-foreground` |
-| Border | `#E2E8F0` | `--color-border` |
+| Muted Foreground | `#475569` | `--color-muted-foreground` |
+| Border (separadores decorativos) | `#E2E8F0` | `--color-border` |
+| Input Border | `#64748B` | `--color-input-border` |
 | Destructive | `#DC2626` | `--color-destructive` |
-| Ring / Focus | `#0F172A` | `--color-ring` |
+| Ring / Focus | `#0369A1` | `--color-ring` |
 
 **Notas:** Navy profesional + CTA blue — comunica confianza, autoridad técnica, modernidad.
+Los valores viven también en [`tokens.css`](tokens.css); `python scripts/check_contrast.py` falla si ambos se desalinean o si un par pierde el contraste mínimo.
+
+### Pares de contraste verificados (WCAG 2.2 AA)
+
+Mínimo 4.5:1 para texto (1.4.3) y 3:1 para bordes de controles y focus rings (1.4.11). Los fondos literales son los de las secciones de [`pages/landing.md`](pages/landing.md) y el hover del botón ghost.
+
+| Uso | Primer plano | Fondo | Ratio | Mínimo |
+|-----|--------------|-------|-------|--------|
+| Texto base | `--color-foreground` (`#020617`) | `--color-background` (`#F8FAFC`) | 19.28:1 | 4.5:1 |
+| Texto en card | `--color-card-foreground` (`#020617`) | `--color-card` (`#FFFFFF`) | 20.17:1 | 4.5:1 |
+| Botón secundario (hover) | `--color-primary` (`#0F172A`) | `--color-background` (`#F8FAFC`) | 17.06:1 | 4.5:1 |
+| Texto en sección navy | `--color-on-primary` (`#FFFFFF`) | `--color-primary` (`#0F172A`) | 17.85:1 | 4.5:1 |
+| Texto en secondary | `--color-on-secondary` (`#FFFFFF`) | `--color-secondary` (`#334155`) | 10.35:1 | 4.5:1 |
+| Botón primario | `--color-on-accent` (`#FFFFFF`) | `--color-accent` (`#0369A1`) | 5.93:1 | 4.5:1 |
+| Botón primario (hover) | `--color-on-accent` (`#FFFFFF`) | `--color-accent-hover` (`#075985`) | 7.56:1 | 4.5:1 |
+| Texto secundario | `--color-muted-foreground` (`#475569`) | `--color-background` (`#F8FAFC`) | 7.24:1 | 4.5:1 |
+| Texto secundario en card | `--color-muted-foreground` (`#475569`) | `--color-card` (`#FFFFFF`) | 7.58:1 | 4.5:1 |
+| Texto secundario en muted | `--color-muted-foreground` (`#475569`) | `--color-muted` (`#E8ECF1`) | 6.39:1 | 4.5:1 |
+| Texto secundario en sección Proyectos | `--color-muted-foreground` (`#475569`) | `#F1F5F9` | 6.92:1 | 4.5:1 |
+| Link | `--color-accent` (`#0369A1`) | `--color-background` (`#F8FAFC`) | 5.67:1 | 4.5:1 |
+| Link en card | `--color-accent` (`#0369A1`) | `--color-card` (`#FFFFFF`) | 5.93:1 | 4.5:1 |
+| Link en sección Proyectos | `--color-accent` (`#0369A1`) | `#F1F5F9` | 5.42:1 | 4.5:1 |
+| Botón ghost (hover) | `--color-accent` (`#0369A1`) | `#EFF6FF` | 5.45:1 | 4.5:1 |
+| Link en sección navy | `--color-accent-on-dark` (`#7DD3FC`) | `--color-primary` (`#0F172A`) | 10.71:1 | 4.5:1 |
+| Link en footer | `--color-accent-on-dark` (`#7DD3FC`) | `#020617` | 12.10:1 | 4.5:1 |
+| Texto de error | `--color-destructive` (`#DC2626`) | `--color-background` (`#F8FAFC`) | 4.62:1 | 4.5:1 |
+| Texto de error en card | `--color-destructive` (`#DC2626`) | `--color-card` (`#FFFFFF`) | 4.83:1 | 4.5:1 |
+| Borde de input | `--color-input-border` (`#64748B`) | `--color-card` (`#FFFFFF`) | 4.76:1 | 3.0:1 |
+| Borde de input sobre fondo | `--color-input-border` (`#64748B`) | `--color-background` (`#F8FAFC`) | 4.55:1 | 3.0:1 |
+| Borde de input en sección Proyectos | `--color-input-border` (`#64748B`) | `#F1F5F9` | 4.34:1 | 3.0:1 |
+| Borde de input (focus) | `--color-accent` (`#0369A1`) | `--color-card` (`#FFFFFF`) | 5.93:1 | 3.0:1 |
+| Borde de input (error) | `--color-destructive` (`#DC2626`) | `--color-card` (`#FFFFFF`) | 4.83:1 | 3.0:1 |
+| Focus ring en Servicios | `--color-ring` (`#0369A1`) | `--color-background` (`#F8FAFC`) | 5.67:1 | 3.0:1 |
+| Focus ring en Confianza / cards | `--color-ring` (`#0369A1`) | `--color-card` (`#FFFFFF`) | 5.93:1 | 3.0:1 |
+| Focus ring en Proyectos | `--color-ring` (`#0369A1`) | `#F1F5F9` | 5.42:1 | 3.0:1 |
+| Focus ring en Hero / Contacto | `--color-accent-on-dark` (`#7DD3FC`) | `--color-primary` (`#0F172A`) | 10.71:1 | 3.0:1 |
+| Focus ring en Footer | `--color-accent-on-dark` (`#7DD3FC`) | `#020617` | 12.10:1 | 3.0:1 |
+| Focus ring en banner CTA | `--color-accent-on-dark` (`#7DD3FC`) | `--color-accent` (`#0369A1`) | 3.56:1 | 3.0:1 |
 
 ### Dark Mode Palette (futura implementación)
 
@@ -144,7 +185,7 @@ fontFamily: {
 - **Border radius:** 8px standard, 12px cards, 4px botones
 - **Hover states:** color shift + `cursor-pointer` (sin shadow)
 - **Transitions:** `150ms ease-out` para micro-interacciones, `200ms ease` para modales
-- **Focus ring:** 2px solid `#0369A1`, offset 2px
+- **Focus ring:** 2px solid `var(--color-ring)`, offset 2px; en secciones oscuras (navy, footer, banner CTA) usar `var(--color-accent-on-dark)`
 
 ---
 
@@ -154,7 +195,7 @@ fontFamily: {
 
 ```css
 /* Primary */
-bg: #0369A1 | text: #FFFFFF | hover: #0284C7 | radius: 6px | padding: 12px 24px
+bg: #0369A1 | text: #FFFFFF | hover: #075985 | radius: 6px | padding: 12px 24px
 
 /* Secondary */
 bg: transparent | border: 1px #E2E8F0 | text: #0F172A | hover: bg #F8FAFC
@@ -172,7 +213,7 @@ bg: #FFFFFF | border: 1px solid #E2E8F0 | radius: 12px | padding: 24px
 ### Inputs
 
 ```css
-border: 1px solid #E2E8F0 | focus: border #0369A1 | radius: 6px | height: 44px min
+border: 1px solid #64748B | focus: border #0369A1 | radius: 6px | height: 44px min
 ```
 
 ---
@@ -189,6 +230,7 @@ border: 1px solid #E2E8F0 | focus: border #0369A1 | radius: 6px | height: 44px m
 
 - [ ] Contraste mínimo 4.5:1 para texto normal
 - [ ] Contraste mínimo 3:1 para texto grande (18px+ bold)
+- [ ] Contraste mínimo 3:1 para bordes de inputs y focus rings contra su fondo
 - [ ] Focus rings visibles en todos los interactivos
 - [ ] Alt text en todas las imágenes significativas
 - [ ] `aria-label` en botones solo-ícono

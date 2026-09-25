@@ -33,14 +33,16 @@
 
 ## Color Strategy per Section
 
-| Sección | Background | Texto | Notas |
-|---------|-----------|-------|-------|
-| Hero | `#0F172A` | `#F8FAFC` | Impacto visual máximo |
-| Servicios | `#F8FAFC` | `#020617` | Limpio, legible |
-| Proyectos | `#F1F5F9` | `#020617` | Diferenciación sutil |
-| Confianza | `#FFFFFF` | `#020617` | Autoridad, limpieza |
-| Contacto | `#0F172A` | `#F8FAFC` | Cierra el loop del hero |
-| Footer | `#020617` | `#94A3B8` | Discreto, funcional |
+| Sección | Background | Texto | Links y focus ring | Notas |
+|---------|-----------|-------|--------------------|-------|
+| Hero | `#0F172A` | `#F8FAFC` | `#7DD3FC` | Impacto visual máximo |
+| Servicios | `#F8FAFC` | `#020617` | `#0369A1` | Limpio, legible |
+| Proyectos | `#F1F5F9` | `#020617` | `#0369A1` | Diferenciación sutil |
+| Confianza | `#FFFFFF` | `#020617` | `#0369A1` | Autoridad, limpieza |
+| Contacto | `#0F172A` | `#F8FAFC` | `#7DD3FC` | Cierra el loop del hero |
+| Footer | `#020617` | `#94A3B8` | `#7DD3FC` | Discreto, funcional |
+
+En fondos oscuros los links y el focus ring usan `--color-accent-on-dark` (`#7DD3FC`); `#0369A1` sobre navy da 3.01:1 y no cumple AA para texto. Ratios en [MASTER.md](../MASTER.md#pares-de-contraste-verificados-wcag-22-aa).
 
 ---
 

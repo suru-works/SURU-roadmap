@@ -119,7 +119,7 @@ Blog             UX / UI Design        [tool 3]
 │  FEATURED PROJECTS / LIVE TOOLS (bg #0F172A, padding 96px 0)                                     │
 │                                                                                                   │
 │  Try something now.           →  [See all projects]                                              │
-│  (white, 40px)                   (text link, #0369A1)                                            │
+│  (white, 40px)                   (text link, #7DD3FC)                                            │
 │                                                                                                   │
 │  ┌──────────────────────────────────────┐  ┌──────────────────────────────────────┐              │
 │  │  [  PROJECT THUMBNAIL / PREVIEW   ]  │  │  [  PROJECT THUMBNAIL / PREVIEW   ]  │              │
