@@ -9,7 +9,7 @@
 
 1. **Entregar valor primero**: el usuario ve algo real al final de cada semana
 2. **Progresividad**: no construir infraestructura que no se necesita aún
-3. **Microservicios reducidos al inicio**: Auth + Image3D + Content en 1 monolito, separar cuando sea necesario
+3. **Pocos servicios al inicio**: v1.0 solo construye Auth (Java), Image3D (Python) y Project Registry (Java), cada uno como servicio propio porque no comparten runtime; Content y los demás se agregan cuando hagan falta (Content llega con el blog, Semana 9–10)
 4. **Testing desde el inicio**: cada servicio tiene tests antes de ir a producción
 
 ---
@@ -36,12 +36,12 @@ Resolver estas antes de comenzar la Semana 1:
 
 **Día 1–2 · Setup**
 - [ ] Nx monorepo init
-- [ ] Docker Compose: Traefik + PostgreSQL + Redis + NATS + MinIO
+- [ ] Docker Compose: Traefik + PostgreSQL + Redis + NATS + MinIO — MinIO: ⚠ en revisión, ver [revisión del stack 2026-09](decisions/2026-09-platform-stack-review.md)
 - [ ] Flyway migrations setup
 - [ ] Estructura `apps/` y `libs/` en Nx
 
 **Día 3–4 · Auth Service**
-- [ ] Spring Boot 3.4 + Java 21 + Spring Authorization Server
+- [ ] Spring Boot 3.4 + Java 21 + Spring Authorization Server — ⚠ en revisión, ver [revisión del stack 2026-09](decisions/2026-09-platform-stack-review.md)
 - [ ] `POST /auth/register` (Argon2id)
 - [ ] `POST /auth/login` (JWT RS256)
 - [ ] `POST /auth/refresh` (rotación de tokens)
@@ -97,7 +97,7 @@ Resolver estas antes de comenzar la Semana 1:
 - [ ] Creación de jobs + tracking de estado (PostgreSQL)
 
 **Día 3 · Queue + SSE**
-- [ ] Cola de jobs con Celery + Redis
+- [ ] Cola de jobs con Celery + Redis — ⚠ en revisión, ver [revisión del stack 2026-09](decisions/2026-09-platform-stack-review.md): tech-stack-2025 dice BullMQ
 - [ ] Integración con MinIO (upload/download)
 - [ ] Publisher NATS en `job.image3d.completed`
 
@@ -119,7 +119,7 @@ Resolver estas antes de comenzar la Semana 1:
 **Objetivo**: Herramienta completa usable desde el browser.
 
 **Día 1 · Shell App**
-- [ ] Next.js 15 + Rspack + Module Federation
+- [ ] Next.js 15 + Rspack + Module Federation — ⚠ en revisión, ver [revisión del stack 2026-09](decisions/2026-09-platform-stack-review.md)
 - [ ] `remotes.config.ts` (URLs locales y producción)
 - [ ] Auth context (estado JWT)
 - [ ] Layout compartido (nav, footer)

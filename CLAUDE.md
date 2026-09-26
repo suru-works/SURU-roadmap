@@ -14,6 +14,7 @@ This is a **strategy and planning repository** for SURUworks — a Colombian tec
 | `docs/architecture/microservices-architecture.md` | Full service map, communication protocols, monorepo structure, migration path |
 | `docs/architecture/docker-compose-reference.md` | Docker Compose setup reference |
 | `docs/stack/tech-stack-2025.md` | Definitive technology decisions with rationale |
+| [`docs/decisions/2026-09-platform-stack-review.md`](docs/decisions/2026-09-platform-stack-review.md) | 2026-09 review of platform decisions with external evidence of obsolescence (MinIO, Next.js shell + MF, Spring Boot 3.4, Spring Authorization Server) and internal contradictions — records evidence and options, does not choose |
 | `docs/auth/auth-system-spec.md` | Auth service spec (JWT RS256, refresh rotation, JWKS endpoint) — customer-facing realm |
 | `docs/auth/group-sso.md` | Group SSO: Authentik IdP, groups/roles model, per-app integration patterns (internal realm) |
 | `docs/architecture/homelab-topology.md` | Physical hosting topology: multi-PC nodes, home ingress (port-forward 80/443 → Traefik on public IP), OpenVPN admin plane, NAS, backups, phases |
@@ -36,7 +37,7 @@ This is a **strategy and planning repository** for SURUworks — a Colombian tec
 
 **Services:** Auth (Java/Spring Boot) → all other services validate tokens against its `/auth/.well-known/jwks.json`. Auth is the only source of truth for identity; every other service stores only the user ID (`usr_` + ULID) from the `sub` JWT claim.
 
-**One Python exception:** `image3d-service` uses FastAPI — all other backend services are Java 21 + Spring Boot 3.4.
+**One Python exception:** `image3d-service` uses FastAPI — all other backend services are Java 21 + Spring Boot 3.4 (⚠ en revisión, ver [revisión del stack 2026-09](docs/decisions/2026-09-platform-stack-review.md)).
 
 **Database pattern:** Single PostgreSQL instance, one database per service (separated by `DATABASE_URL` env var). No cross-service database queries.
 
@@ -46,14 +47,14 @@ This is a **strategy and planning repository** for SURUworks — a Colombian tec
 
 ## Key Technology Decisions
 
-These are locked. Do not suggest alternatives without strong justification:
+These are locked. Do not suggest alternatives without strong justification. Rows marked "⚠ en revisión" keep their value until the owner decides; the evidence is in [the 2026-09 stack review](docs/decisions/2026-09-platform-stack-review.md):
 
 - **API Gateway:** Traefik v3 (auto-discovers Docker containers via labels, native k8s Ingress for migration)
 - **Event bus:** NATS with JetStream (not Kafka, not RabbitMQ)
 - **Database:** PostgreSQL everywhere (Analytics uses TimescaleDB extension)
-- **Object storage:** MinIO locally → S3 in cloud (same SDK, only URL changes)
-- **Microfrontend:** Module Federation 2.0 (`@module-federation/enhanced`) on Rspack — not Single-SPA, not iframes (updated 2026-08: `@originjs/vite-plugin-federation` is unmaintained)
-- **Auth:** Custom Spring Authorization Server (not Keycloak, not Auth0)
+- **Object storage:** MinIO locally → S3 in cloud (same SDK, only URL changes) — ⚠ en revisión, ver [revisión del stack 2026-09](docs/decisions/2026-09-platform-stack-review.md)
+- **Microfrontend:** Module Federation 2.0 (`@module-federation/enhanced`) on Rspack — not Single-SPA, not iframes (updated 2026-08: `@originjs/vite-plugin-federation` is unmaintained) — the Next.js host of the shell: ⚠ en revisión, ver [revisión del stack 2026-09](docs/decisions/2026-09-platform-stack-review.md)
+- **Auth:** Custom Spring Authorization Server (not Keycloak, not Auth0) — version line and Spring Boot base: ⚠ en revisión, ver [revisión del stack 2026-09](docs/decisions/2026-09-platform-stack-review.md)
 - **Frontend state:** TanStack Query v5 (server state) + Zustand 5.x (UI state)
 - **Styling:** Tailwind CSS v4 + shadcn/ui + `@suruworks/ui` design system package
 

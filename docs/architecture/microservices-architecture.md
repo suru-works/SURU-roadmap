@@ -17,6 +17,8 @@ This document defines the complete architecture for SURUworks: a personal tech p
 - PostgreSQL everywhere possible (one mental model, one ops skill)
 - Docker Compose Day 1, k3s on-premise, EKS when revenue justifies it
 
+> ⚠ en revisión, ver [revisión del stack 2026-09](../decisions/2026-09-platform-stack-review.md): MinIO, the Next.js shell host and the Spring Boot 3 / Spring Authorization Server versions have external evidence of obsolescence; they keep their value until the owner decides.
+
 ---
 
 ## 1. Service Map
@@ -118,7 +120,7 @@ This document defines the complete architecture for SURUworks: a personal tech p
 
 **Reasoning:** AI/ML tooling is Python-native. This is the ONE place outside Java, and it is justified. FastAPI is the right Python web framework for 2025: async, typed, auto-docs.
 
-**Exposes:** REST (`POST /tools/image-to-3d/jobs`, `GET /tools/image-to-3d/jobs/{id}`). Async — job submission returns immediately, results polled or pushed via WebSocket.
+**Exposes:** REST (`POST /tools/image-to-3d/jobs`, `GET /tools/image-to-3d/jobs/{id}`). Async — job submission returns immediately; progress is polled or streamed via SSE (Spring WebFlux endpoint, per [tech-stack-2025 §8](../stack/tech-stack-2025.md)).
 
 **Dependencies:** Auth Service (JWT validation), NATS (publishes `job.completed` events), MinIO (object storage).
 
@@ -148,6 +150,8 @@ This document defines the complete architecture for SURUworks: a personal tech p
 > Actualizado 2026-08: antes decía `@originjs/vite-plugin-federation`, que quedó sin mantenimiento activo y contradecía a [tech-stack-2025](../stack/tech-stack-2025.md), que ya especificaba Rspack + MF 2.0. Se unifica en Rspack + MF 2.0.
 
 ### Shell Application (Host)
+
+> ⚠ en revisión, ver [revisión del stack 2026-09](../decisions/2026-09-platform-stack-review.md): this section describes a React Router shell with Vite-style `import.meta.env.VITE_*` variables, while tech-stack-2025, the master spec and the roadmap use Next.js 15, whose Module Federation plugin is end-of-life.
 
 `suruworks-shell` is a React app that:
 1. Owns the global navigation bar, footer, and auth state
@@ -231,37 +235,21 @@ Reads Docker labels. Auto-discovers services. Native Kubernetes Ingress support 
 
 ### Day 1: Docker Compose
 
+The repository layout is the single Nx layout of [§7 Monorepo: Nx](#7-monorepo-nx): services and MFEs live under `apps/`, shared code under `libs/`. Day 1 only fills `infrastructure/` with the Compose stack:
+
 ```
-suruworks/
+infrastructure/
 ├── docker-compose.yml
 ├── docker-compose.override.yml    ← dev overrides (hot reload, debug ports)
 ├── .env.example
 ├── traefik/
 │   ├── traefik.yml                ← static config
 │   └── dynamic/                   ← dynamic config (TLS, middleware)
-├── services/
-│   ├── auth-service/              ← Java/Spring Boot
-│   ├── user-profile-service/      ← Java/Spring Boot
-│   ├── content-service/           ← Java/Spring Boot
-│   ├── project-registry-service/  ← Java/Spring Boot
-│   ├── email-service/             ← Java/Spring Boot
-│   ├── analytics-service/         ← Java/Spring Boot + TimescaleDB
-│   ├── image3d-service/           ← Python/FastAPI
-│   └── admin-service/             ← Java/Spring Boot
-├── apps/
-│   ├── shell/                     ← React MFE Shell
-│   ├── corporate-mfe/
-│   ├── showcase-mfe/
-│   ├── admin-mfe/
-│   └── image3d-mfe/
-├── libs/
-│   └── ui/                        ← @suruworks/ui design system
-└── infrastructure/
-    ├── postgres/
-    │   └── init-dbs.sql           ← CREATE DATABASE per service
-    ├── redis/
-    ├── nats/
-    └── minio/
+├── postgres/
+│   └── init-dbs.sql               ← CREATE DATABASE per service
+├── redis/
+├── nats/
+└── minio/
 ```
 
 ### Step 2: k3s (On-Premise Kubernetes)
@@ -477,7 +465,7 @@ suruworks/                        ← Nx workspace root
 | Microfrontend | Module Federation 2.0 (Rspack) | React replacement |
 | Event Bus | NATS with JetStream | 10M+ events/day |
 | Database | PostgreSQL everywhere | AI needs vector DB |
-| Object Storage | MinIO → S3 | Always (same API) |
+| Object Storage | MinIO → S3 (⚠ en revisión, ver [revisión del stack 2026-09](../decisions/2026-09-platform-stack-review.md)) | Always (same API) |
 | Monorepo tool | Nx | Team preference |
 | Container orchestration | Docker Compose → k3s → EKS | Revenue justifies managed K8s |
 | IaC | Terraform | Team is TypeScript-only |

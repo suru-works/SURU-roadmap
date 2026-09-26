@@ -2,6 +2,8 @@
 
 > Análisis por agente especializado el 2025-05-02. Basado en investigación de fuentes primarias.
 > Stack primario: React + Java. Abierto a tecnologías modernas justificadas.
+>
+> ⚠ Revisión 2026-09: las filas marcadas "en revisión" tienen evidencia de obsolescencia o se contradicen con otros docs; conservan su valor hasta que el dueño decida. Ver [revisión del stack 2026-09](../decisions/2026-09-platform-stack-review.md).
 
 ---
 
@@ -10,17 +12,17 @@
 | Layer | Technology | Version | Reasoning |
 |---|---|---|---|
 | Corporate site | **Astro** | 5.x | Zero JS default, 2-3x faster FCP, Content Layer API |
-| Shell app / tool pages | **Next.js** | 15.x | SSR, auth, API routes, hosts MFE remotes |
+| Shell app / tool pages | **Next.js** | 15.x | SSR, auth, API routes, hosts MFE remotes. ⚠ en revisión, ver [revisión del stack 2026-09](../decisions/2026-09-platform-stack-review.md) |
 | Tool microfrontends | **React** | 19.x | Isolated deploys via Module Federation 2.0 |
 | Build tool (shell + MFEs) | **Rspack** | latest | Native Module Federation v2, 4x faster than webpack |
 | State — server | **TanStack Query** | v5 | Cache, re-validation, optimistic updates |
 | State — client | **Zustand** | 5.x | Zero-boilerplate UI state across components |
 | Styling | **Tailwind CSS** | v4 | CSS-first config, OKLCH tokens, design-system ready |
 | Component base | **shadcn/ui** | latest (v4 branch) | Owned code, accessible primitives |
-| Backend framework | **Spring Boot** | 3.4.x | Team expertise, virtual threads, largest ecosystem |
+| Backend framework | **Spring Boot** | 3.4.x | Team expertise, virtual threads, largest ecosystem. ⚠ en revisión, ver [revisión del stack 2026-09](../decisions/2026-09-platform-stack-review.md) |
 | Java version | **Java 21 LTS** | 21 | Virtual threads GA, records, pattern matching |
 | Concurrency model | **Spring MVC + Virtual Threads** | — | WebFlux throughput, simpler code, keeps JPA |
-| Auth service | **Spring Authorization Server** | 1.4+ | OAuth 2.1 + OIDC 1.0, Spring-native, production-ready |
+| Auth service | **Spring Authorization Server** | 1.4+ | OAuth 2.1 + OIDC 1.0, Spring-native, production-ready. ⚠ en revisión, ver [revisión del stack 2026-09](../decisions/2026-09-platform-stack-review.md) |
 | AI microservice | **Python FastAPI** | 0.115+ | ML ecosystem, async, typed |
 | Image-to-3D model | **TripoSR** | latest | MIT, <0.5s GPU, CPU fallback, Hugging Face weights |
 | Job queue | **Redis** | 7.x | Pub/sub for SSE + async job processing |
@@ -35,7 +37,7 @@
 | CI/CD | **GitHub Actions** | — | Monorepo path filtering, affinity with modern tooling |
 | Observability (metrics) | **Prometheus + Grafana** | latest | Spring Actuator integration, zero cost |
 | Observability (logs) | **Loki + Promtail** | latest | Add Phase 2 when debugging becomes needed |
-| Object storage | **MinIO → S3** | latest | S3-compatible, same SDK for both environments |
+| Object storage | **MinIO → S3** | latest | S3-compatible, same SDK for both environments. ⚠ en revisión, ver [revisión del stack 2026-09](../decisions/2026-09-platform-stack-review.md) |
 
 ---
 
@@ -47,9 +49,9 @@
 |---|---|---|---|
 | Corporate / marketing site | **Astro 5** | Vite (internal) | Static HTML, zero JS default, fastest load |
 | Project showcase (content) | **Astro 5** (Content Layer) | Vite | Typed CMS-agnostic content API |
-| Shell application | **Next.js 15** | Rspack + MF 2.0 | Auth, routing, SSR, hosts MFEs |
+| Shell application | **Next.js 15** | Rspack + MF 2.0 | Auth, routing, SSR, hosts MFEs. ⚠ en revisión, ver [revisión del stack 2026-09](../decisions/2026-09-platform-stack-review.md) |
 | AI tool microfrontends | **React 19** | Rspack + MF 2.0 | Federated remote, isolated deploys |
-| Admin panel | **React 19 + Next.js** | Rspack | Dynamic data, auth-gated |
+| Admin panel | **React 19 + Next.js** | Rspack | Dynamic data, auth-gated. ⚠ en revisión, ver [revisión del stack 2026-09](../decisions/2026-09-platform-stack-review.md) |
 
 ### React 19 Key Features
 
@@ -175,7 +177,7 @@ Spring Authorization Server 1.4+ is production-ready. Implements OAuth 2.1 + OID
 Client → POST /jobs (multipart upload)
   → Spring Boot API Gateway
     → Upload file to MinIO
-    → Enqueue to Redis/BullMQ
+    → Enqueue to Redis/BullMQ      ⚠ en revisión: el roadmap dice Celery (ver ../decisions/2026-09-platform-stack-review.md)
     → Return jobId
 
 Client → GET /jobs/{id}/events (SSE stream)

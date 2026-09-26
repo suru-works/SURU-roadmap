@@ -26,6 +26,8 @@ SURU-roadmap/
 │   ├── superpowers/specs/
 │   │   └── 2025-05-02-suruworks-platform-design.md  # Design spec original
 │   ├── brand/brand-identity.md                # Identidad y tono de marca
+│   ├── decisions/
+│   │   └── 2026-09-platform-stack-review.md   # Decisiones de la plataforma en revisión (evidencia, sin elegir)
 │   ├── architecture/
 │   │   ├── microservices-architecture.md      # Mapa de servicios de la plataforma comercial
 │   │   ├── docker-compose-reference.md        # Compose de referencia

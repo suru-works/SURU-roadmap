@@ -79,7 +79,7 @@ Este spec cubre la implementación completa de la plataforma v1.0:
 | # | Servicio | Tech | DB | Notas |
 |---|---------|------|-----|-------|
 | 1 | API Gateway | Traefik v3 | — | Auto-discovery, TLS, rate limit |
-| 2 | Auth Service | Java 21 + Spring Boot | PostgreSQL + Redis | JWT RS256, Spring Auth Server |
+| 2 | Auth Service | Java 21 + Spring Boot | PostgreSQL + Redis | JWT RS256, Spring Auth Server. ⚠ en revisión, ver [revisión del stack 2026-09](../../decisions/2026-09-platform-stack-review.md) |
 | 3 | User Profile | Java 21 + Spring Boot | PostgreSQL | NATS consumer |
 | 4 | Content/CMS | Java 21 + Spring Boot | PostgreSQL JSONB | Headless CMS |
 | 5 | Project Registry | Java 21 + Spring Boot | PostgreSQL | Catalogo de herramientas |
@@ -90,14 +90,14 @@ Este spec cubre la implementación completa de la plataforma v1.0:
 
 ### Microfrontend Architecture
 
-**Shell:** Next.js 15 + Rspack + Module Federation 2.0
+**Shell:** Next.js 15 + Rspack + Module Federation 2.0 — ⚠ en revisión, ver [revisión del stack 2026-09](../../decisions/2026-09-platform-stack-review.md)
 
 | MFE | Route | Framework |
 |-----|-------|-----------|
 | Corporate site | `/`, `/about`, `/services`, `/contact` | Astro 5 |
 | Project showcase | `/projects`, `/projects/:slug` | Astro 5 |
 | Image-to-3D tool | `/tools/image-to-3d` | React 19 |
-| Admin panel | `/admin/*` | React 19 + Next.js |
+| Admin panel | `/admin/*` | React 19 + Next.js (⚠ en revisión, ver [revisión del stack 2026-09](../../decisions/2026-09-platform-stack-review.md)) |
 | Auth UI | `/login`, `/signup` | React 19 |
 
 **Shared design system:** `@suruworks/ui` (private npm package, Vite library mode)
@@ -228,14 +228,14 @@ Google OAuth2 + GitHub OAuth2 via Spring Authorization Server client registratio
 | Layer | Technology | Version |
 |-------|-----------|---------|
 | Corporate site | Astro | 5.x |
-| Shell / tools | Next.js | 15.x |
+| Shell / tools | Next.js | 15.x (⚠ en revisión, ver [revisión del stack 2026-09](../../decisions/2026-09-platform-stack-review.md)) |
 | Tool MFEs | React | 19.x |
 | Build tool | Rspack | latest |
 | Server state | TanStack Query | v5 |
 | Client state | Zustand | 5.x |
 | Styling | Tailwind CSS | v4 |
 | Components | shadcn/ui | latest |
-| Backend | Spring Boot | 3.4.x |
+| Backend | Spring Boot | 3.4.x (⚠ en revisión, ver [revisión del stack 2026-09](../../decisions/2026-09-platform-stack-review.md)) |
 | Java | Java 21 LTS | 21 |
 | AI service | Python FastAPI | 0.115+ |
 | AI model (3D) | TripoSR | latest |
@@ -248,7 +248,7 @@ Google OAuth2 + GitHub OAuth2 via Spring Authorization Server client registratio
 | CI/CD | GitHub Actions | — |
 | Containers | Docker Compose → k3s | — |
 | Observability | Prometheus + Grafana | latest |
-| Object storage | MinIO → S3 | latest |
+| Object storage | MinIO → S3 | latest (⚠ en revisión, ver [revisión del stack 2026-09](../../decisions/2026-09-platform-stack-review.md)) |
 | Email | Resend | — |
 
 ---
