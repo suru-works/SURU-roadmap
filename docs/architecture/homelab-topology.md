@@ -8,7 +8,7 @@
 
 ## 1. Principios
 
-1. **Superficie mínima en el router.** Solo se abren **80/443** hacia el host del reverse proxy (Traefik). Ningún otro puerto forwardeado, nunca. UPnP y WPS deshabilitados.
+1. **Superficie mínima en el router.** Solo se abren **80/443** hacia el host del reverse proxy (Traefik) y, como **única excepción explícita del plano de administración**, el puerto de la VPN, que atiende el servidor OpenVPN del propio router de borde (valor en `suru-infra`, privado). Ningún otro puerto abierto ni forwardeado, nunca. UPnP y WPS deshabilitados.
 2. **Dos planos de red separados, y se mantienen separados:**
    - **Plano público** — lo que el mundo ve (`suruworks.com` y subdominios). Entra por 80/443 → Traefik en `node-01`.
    - **Plano de administración** — UIs de admin, NAS, Komodo, llama-server, dashboard de Traefik. Solo por **OpenVPN del router** o LAN. Nunca detrás del ingress público.
@@ -27,7 +27,8 @@
 | `node-01` | **Decidido 2026-08-20: la torre Ryzen 7 3700X, 16GB RAM, 1TB NVMe** (ex-banco de pruebas de OpenWinBlue). Debian + Docker; el banco de drivers se preserva en una **VM Windows 10 (KVM) con passthrough USB del dongle BT** — test-signing y BSODs encerrados en la VM, el ingress no se entera. Consumo ~50-70W 24/7 (mitigable con eco-mode del Ryzen). Deja de ser crítico cuando el NAS absorba sus servicios en F3 | **Ingress público** + servicios 24/7 que no deben depender del rig | **Traefik v3** (80/443, Let's Encrypt), sitio estático Astro, lumina-calendar, Uptime Kuma, CrowdSec, **Pi-hole** (DNS/adblock de la LAN y de los clientes VPN); desde F2: Authentik, revscope-server + PostgreSQL/PostGIS, Komodo Core (interino) |
 | `rig` | Ryzen 9 7900X3D, 128GB, RX 7800 XT 16GB (+ R9700 32GB pendiente), Windows 11 | Nodo GPU. Servicios nativos Windows, proxiados por Traefik vía LAN. Antes de publicarlo aplica el gate de aislamiento (ver [roadmap del rig](https://github.com/santiquiroz/local-llm-homelab/blob/master/docs/homelab-roadmap.md)) | bipolar-code + llama-server, Upflow, Argos (demo), Ollama |
 | `nas` (futuro) | UGREEN DXP (4 bahías clase DXP4800 Plus), UGOS Pro | Almacenamiento, backups, contenedores livianos 24/7 | SMB/NFS, repositorio restic, Authentik, Komodo Core, monitoreo interno |
-| Router | Router con IP pública, port-forwarding y **servidor OpenVPN** | Frontera: forward 80/443 → node-01; VPN del plano admin | OpenVPN server (perfiles por miembro/dispositivo) |
+| Módem/ONT del ISP | Equipo del ISP con la IP pública estática | Primer NAT: DMZ → IP WAN (reservada) del router de borde; no se le configura nada más | — |
+| Router de borde | Router propio detrás del módem (doble NAT), port-forwarding y **servidor OpenVPN** | Frontera: forward 80/443 → node-01; VPN del plano admin | OpenVPN server (perfiles por miembro/dispositivo) |
 | Móviles | S25 Ultra, etc. | Clientes VPN; Nodo (LLM on-device) como historia de ecosistema, no como servicio hosteado | — |
 
 Regla de colocación: **GPU → rig; 24/7 liviano e ingress → node-01/NAS.** El rig puede apagarse o reiniciarse sin tumbar identidad, sitio ni monitoreo. **Identidad (Authentik) solo corre en node-01 → NAS, nunca en el rig.**
@@ -43,8 +44,9 @@ flowchart LR
         M[Miembros SURU]
         EM[Monitor externo gratuito]
     end
-    subgraph Casa["LAN casa (IP pública)"]
-        RT[Router<br/>forward SOLO 80/443<br/>OpenVPN server]
+    subgraph Casa["Casa (IP pública estática)"]
+        MD[Módem/ONT del ISP<br/>DMZ → router de borde]
+        RT[Router de borde<br/>forward SOLO 80/443<br/>+ puerto VPN: OpenVPN server]
         subgraph N1["node-01 (Linux)"]
             T[Traefik v3 + CrowdSec]
             S[Astro + Lumina + Kuma]
@@ -53,10 +55,11 @@ flowchart LR
         R[rig - Windows<br/>bipolar / Upflow / Argos]
         NS[nas - UGREEN F3+]
     end
-    U -->|HTTPS suruworks.com| RT
-    M -->|HTTPS + SSO| RT
-    EM -->|ping status| RT
-    M -.->|OpenVPN admin| RT
+    U -->|HTTPS suruworks.com| MD
+    M -->|HTTPS + SSO| MD
+    EM -->|ping status| MD
+    M -.->|OpenVPN admin| MD
+    MD -->|DMZ| RT
     RT --> T
     T -->|LAN| R
     T --> S
@@ -65,10 +68,10 @@ flowchart LR
 
 ### Plano público — port-forwarding 80/443 → Traefik
 
-- El router forwardea **únicamente 80 y 443** a `node-01`. Ahí Traefik v3 termina TLS (Let's Encrypt) y rutea por hostname según el [mapa de subdominios](platform-integration.md).
-- **DNS:** `suruworks.com` → IP pública de casa (Cloudflare DNS). En F0 confirmar si la IP es estática o dinámica; si es dinámica, contenedor DDNS (`cloudflare-ddns`) en node-01 actualizando el registro A. Certificados: wildcard `*.suruworks.com` con DNS-01 (token Cloudflare scoped a TXT de la zona) — evita exponer subdominios uno a uno en certificate transparency.
+- El router de borde forwardea **únicamente 80 y 443** a `node-01`. Ahí Traefik v3 termina TLS (Let's Encrypt) y rutea por hostname según el [mapa de subdominios](platform-integration.md).
+- **DNS:** `suruworks.com` → IP pública de casa (Cloudflare DNS). La IP es estática (confirmado en F0, ver abajo): sin DDNS. Certificados: wildcard `*.suruworks.com` con DNS-01 (token Cloudflare scoped a TXT de la zona) — evita exponer subdominios uno a uno en certificate transparency.
 - **La cuenta DNS/registrar es parte de la cadena de confianza** (un takeover re-apunta `auth.` y phishea a todos): 2FA con llave de hardware, registrar lock, DNSSEC, registro CAA fijando Let's Encrypt. Va en F0.
-- **Trade-off aceptado (y sus mitigaciones):** exponer la IP de casa revela ubicación aproximada y recibe el escaneo de fondo de internet. Mitigación: solo 2 puertos abiertos, CrowdSec en Traefik (bloqueo de IPs abusivas), rate-limiting middleware en endpoints de login/API, y **opción de escalada barata**: activar el proxy de Cloudflare (orange-cloud, gratis) delante para ocultar la IP si el ruido o un DDoS molestan — es un toggle en el DNS, no un rediseño. Se arranca DNS-only (TLS end-to-end propio) y se escala solo si hace falta.
+- **Trade-off aceptado (y sus mitigaciones):** exponer la IP de casa revela ubicación aproximada y recibe el escaneo de fondo de internet. Mitigación: solo 80/443 abiertos hacia el ingress (más el puerto de la VPN, que termina en el router de borde), CrowdSec en Traefik (bloqueo de IPs abusivas), rate-limiting middleware en endpoints de login/API, y **opción de escalada barata**: activar el proxy de Cloudflare (orange-cloud, gratis) delante para ocultar la IP si el ruido o un DDoS molestan — es un toggle en el DNS, no un rediseño. Se arranca DNS-only (TLS end-to-end propio) y se escala solo si hace falta.
 - La config de Traefik (routers/middlewares) es **declarativa y vive en `suru-infra`**: un diff delata cualquier ruta pública no aprobada; cron simple en node-01 alerta si la config activa difiere del repo.
 - **Publicación de emergencia de algo del plano admin:** solo tras SSO + `suru-admins`, registrada como cambio en `suru-infra`, y revertida con TTL — nunca una ruta permanente.
 
@@ -98,7 +101,7 @@ flowchart LR
 
 - **Komodo** (GPL-3.0, gratis sin caps): dashboard único que maneja stacks Compose en N servidores vía agentes Periphery, con deploys git-driven, RBAC y login OIDC (se integra al SSO del grupo). Alternativas descartadas: Portainer (RBAC y team-sync de OAuth en tier Business; el login OAuth básico sí está en CE) y Dockge (tiene agentes multi-host desde 1.4, pero sin RBAC, sin OIDC y sin deploys git-driven).
 - Komodo Core corre en node-01 → NAS; Periphery en cada nodo Linux. El rig Windows queda fuera de Komodo (servicios nativos). **Komodo es plano admin: acceso solo por VPN/LAN — nunca subdominio público** (es RCE-de-flota con una sesión admin robada).
-- **GitOps:** los archivos Compose y config de cada nodo (incluido el Traefik de ingress) viven en un repo privado nuevo `suru-infra` (crear en F1; NO en este repo, que es público). Komodo sincroniza desde ahí. Secretos fuera de git siempre — con escrow (§6).
+- **GitOps:** los archivos Compose y config de cada nodo (incluido el Traefik de ingress) viven en el repo privado `suru-infra` (ya creado en 2026-08 con el esqueleto de node-01; NO en este repo, que es público). Komodo sincroniza desde ahí. Secretos fuera de git siempre — con escrow (§6).
 - Umbral de reevaluación: >3 nodos Linux y necesidad real de rolling deploys/HA → reabrir k3s. No antes.
 
 ## 5. NAS UGREEN (compra futura)
@@ -152,10 +155,10 @@ Sin VPS: US$0/mes de infraestructura alquilada hasta F2 (~US$1.6/mes desde ahí)
 
 ## 9. Fases (con criterios de salida)
 
-- **F0 — ahora ($0):** docs publicados; DNS: nameservers en Cloudflare + hardening de la cuenta (2FA hardware, registrar lock, DNSSEC, CAA); confirmar IP estática vs dinámica (dinámica → plan DDNS); **servidor OpenVPN del router configurado y probado desde red externa** (datos móviles).
+- **F0 — ahora ($0):** docs publicados; DNS: nameservers en Cloudflare + hardening de la cuenta (2FA hardware, registrar lock, DNSSEC, CAA); ~~confirmar IP estática vs dinámica~~ resuelto 2026-08-20: IP estática, DDNS innecesario; **servidor OpenVPN del router configurado y probado desde red externa** (datos móviles).
   *Salida:* `dig suruworks.com` resuelve a la IP de casa; un miembro entra por OpenVPN desde fuera y alcanza solo lo que su perfil permite.
-- **F1 — ingress en casa:** node-01 aprovisionado; Traefik v3 con Let's Encrypt (wildcard DNS-01) + CrowdSec; port-forward 80/443; DDNS si aplica; sitio Astro + Lumina en vivo; Uptime Kuma + monitor externo gratuito; repo `suru-infra` creado con la config declarativa.
-  *Salida:* `https://suruworks.com` y `https://lumina.suruworks.com` con TLS válido desde fuera; escaneo externo (`nmap`) muestra solo 80/443 abiertos; status page monitoreada por el tercero.
+- **F1 — ingress en casa:** node-01 aprovisionado; Traefik v3 con Let's Encrypt (wildcard DNS-01) + CrowdSec; port-forward 80/443; sitio Astro + Lumina en vivo; Uptime Kuma + monitor externo gratuito; config declarativa de node-01 completa en `suru-infra` (el repo ya existe).
+  *Salida:* `https://suruworks.com` y `https://lumina.suruworks.com` con TLS válido desde fuera; escaneo externo (`nmap`, TCP y UDP) muestra abiertos solo 80/443 y el puerto de la VPN; status page monitoreada por el tercero.
 - **F2 — identidad:** Authentik en `auth.suruworks.com`; SMTP configurado (SPF/DKIM/DMARC en DNS); **restic→B2 de la DB de Authentik desde el día 1**; revscope-server con `AUTH_MODE=oidc` — primera app del grupo con SSO real; cadena forward-auth (Traefik middleware → Authentik proxy provider) validada con un servicio trivial y config de referencia en `suru-infra`.
   *Salida:* un miembro invitado entra con passkey a revscope; restore de prueba de la DB de Authentik desde B2 ejecutado una vez.
 - **F3 — NAS:** compra UGREEN (trigger: F2 estable + presupuesto ~US$1.000 disponible); migran Authentik/Komodo/monitoreo; 3-2-1 completo operando.
@@ -169,10 +172,10 @@ Sin VPS: US$0/mes de infraestructura alquilada hasta F2 (~US$1.6/mes desde ahí)
 | Riesgo | Mitigación |
 |---|---|
 | Conexión/energía de casa = single point de todo lo público | Aceptado (homelab, no SLA comercial); monitor externo avisa; si un día duele, la escalada natural es mover el ingress estático a un VPS/CDN sin tocar el resto |
-| IP de casa expuesta (escaneo, DDoS, geolocalización aproximada) | Solo 80/443; CrowdSec + rate-limits; escalada barata: proxy de Cloudflare (orange-cloud) como toggle |
-| IP dinámica rompe el DNS | DDNS automatizado en node-01 (F0/F1); TTL bajo en el registro A |
-| Compromiso del router (frontera + VPN) | Firmware al día, UPnP/WPS off, admin no accesible desde WAN; revisión periódica de port-forwards |
+| IP de casa expuesta (escaneo, DDoS, geolocalización aproximada) | Solo 80/443 + el puerto de la VPN; CrowdSec + rate-limits; escalada barata: proxy de Cloudflare (orange-cloud) como toggle |
+| IP dinámica rompe el DNS (solo si se cambia de ISP o de plan; hoy la IP es estática) | En ese caso: DDNS (`cloudflare-ddns`) en node-01 y TTL bajo en el registro A |
+| Compromiso del router de borde (frontera + VPN) | Firmware al día, UPnP/WPS off, admin no accesible desde WAN; revisión periódica de port-forwards |
 | El rig es Windows y single-point para todo lo GPU | Aceptado: servicios GPU best-effort, nunca SLA; identidad/sitio no dependen del rig; gate de aislamiento antes de F4 |
-| ISP migra a CGNAT en el futuro | Se detectaría por el monitor externo + DDNS; reabre la decisión de entrada (VPS/túneles) — documentado, no diseñado |
+| ISP migra a CGNAT en el futuro | Se detectaría por el monitor externo; reabre la decisión de entrada (VPS/túneles) — documentado, no diseñado |
 | Takeover de la cuenta DNS/registrar | Hardening F0: 2FA hardware, registrar lock, DNSSEC, CAA |
 | Un solo operador (bus factor) | Docs en este repo; `suru-infra` con README de restore; escrow de secretos en dos custodias (§6); break-glass con segunda copia sellada ([group-sso](../auth/group-sso.md)) |

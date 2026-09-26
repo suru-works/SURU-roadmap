@@ -81,8 +81,6 @@ Sin embargo, el análisis del agente no considera:
 
 **Recomendación final**: Conservar **SURU** como identidad de marca principal. Opcionalmente: relanzar como simplemente **SURU** (sin "works") para mayor memorabilidad. Si se hace un rebrand completo, **FORJA** para LATAM o **KRAVIO** para global.
 
-### Criterios para la decisión final
-
 ---
 
 ## Brand Voice

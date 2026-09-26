@@ -76,9 +76,13 @@ job.image3d.completed
 job.image3d.failed
 ```
 
-## Implementation Order (from roadmap)
+## Implementation Order
 
-Auth Service must be built first — every other service depends on it. Build sequence:
+There are two independent sequences; do not mix them.
+
+**Group hosting topology (current, `docs/architecture/homelab-topology.md` §9):** F0 DNS + VPN → F1 home ingress with the static Astro site (no auth) → F2 group identity (Authentik) → F3 NAS → F4 member-only GPU services → F5 commercial platform. The corporate site ships in F1 without the Auth Service.
+
+**Commercial platform (F5, from `docs/roadmap.md`):** within the platform, Auth Service must be built first — every other platform service depends on it. Build sequence:
 1. Auth Service + Docker Compose infra stack
 2. Corporate site (Astro 5)
 3. Image-to-3D backend (FastAPI)
